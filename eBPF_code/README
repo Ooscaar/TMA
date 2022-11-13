@@ -1,0 +1,46 @@
+Dependencies (install them in a different directory):
+	cd $HOME
+	mkdir XDP_tutorial ; cd XDP_tutorial
+	git clone https://github.com/xdp-project/xdp-tutorial .
+	git submodule update --init
+	git clone --recurse-submodules https://github.com/xdp-project/xdp-tutorial
+
+	sudo apt install clang llvm libelf-dev libpcap-dev gcc-multilib build-essential
+	sudo apt install linux-tools-$(uname -r)
+	sudo apt install linux-headers-$(uname -r)
+	sudo apt install linux-tools-common linux-tools-generic
+	sudo apt install tcpdump
+	sudo apt install ethtool
+	sudo apt install socat
+
+
+Point to your local copy of libbpf library (probably located in $HOME/XDP_tutorial):
+	echo "/home/albert/Documents/TMA_Project/" > LIBBPF_DIR
+Remember to keep this file updated (i.e. be careful with other people commiting it).
+
+
+Make veth:
+	IPv4:
+		sudo ./testenv/testenv.sh --legacy-ip setup --name veth
+	IPv6:
+		sudo ./testenv/testenv.sh setup --name veth
+		
+In order to deploy an eBPF program:
+	sudo ./xdp_loader --dev veth --force
+
+NEW terminal tab:
+	sudo ip netns exec veth /bin/bash
+	ping 10.11.1.1
+	ping fc00:dead:cafe:1::1
+	
+	socat - 'udp4:[10.11.1.1]:2000' # Test UDP in IPv4
+	socat - 'udp6:[fc00:dead:cafe:1::1]:2000' # test UDP in IPv6
+
+NEW terminal tab: 
+	sudo ./xdp_stats --dev veth
+
+Teardown environment:
+	sudo ./testenv/testenv.sh teardown --name veth
+
+Reset environment:
+	sudo ./testenv/testenv.sh reset --name veth
