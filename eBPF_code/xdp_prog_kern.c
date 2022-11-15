@@ -14,115 +14,28 @@
 #include "./common/xdp_stats_kern_user.h"
 #include "./common/xdp_stats_kern.h"
 
+#include "common_kern_user_datastructure.h"
+
+struct bpf_map_def SEC("maps") xdp_flow_map = {
+	.type        = BPF_MAP_TYPE_HASH,
+	.key_size    = sizeof(struct flow),
+	.value_size  = sizeof(__u32),
+	.max_entries = MAX_FLOWS_ENTRIES,
+};
+// Maps ref: https://docs.kernel.org/bpf/map_hash.html
+
 /*	DEBUG eBPF:
 		bpf_printk("%d", nh_type);
 	From another terminal, cat /sys/kernel/debug/tracing/trace_pipe
 */
-struct sniff_quic_long_header {
-	uint8_t header;    /* first header */
-	uint32_t version;  /* version */
-	uint8_t d_length; /* lengt destionation id*/
-	/* rest of the payload */
-};
-
-#define MAX_CONN_ID_SIZE 20 // 160 bits = 20 Bytes
-
-struct connection_ID {
-	uint8_t val[MAX_CONN_ID_SIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-};
-
-
-void process_quic_long_header(const void *payload, uint32_t in_version, const void *data_end) {
-/*	struct quic_long_header quic = {
-		uint8_t header = payload[0];
-		uint32_t version = in_version;
-		uint8_t len_d_connection_id = payload[1];
-	} */
-	struct quic_long_header *quic = payload;
-	
-	uint8_t *raw_ID = (void*)(payload + sizeof(struct quic_long_header));
-	
-	struct connection_ID dest_ID, src_ID;
-	
-	int i;
-	for (i = 0; i < quic.d_length; i++) {
-		dest_ID[MAX_CONN_ID_SIZE-quic.d_length+i] = raw_ID[i];
-	}
-	
-	raw_ID = raw_ID+quic.d_length;
-	uint8_t s_length = raw_ID[0];
-	raw_ID += 1;
-	for (i = 0; i < s_length; i++) {
-		src_ID[MAX_CONN_ID_SIZE-s_length+i] = raw_ID[i];
-	}
-	raw_ID = raw_ID+s_length;
-	
-	
-	
-	bpf_printk("   -> LENGTH %d\n", len_d_connection_id);
-}
-
-void process_udp(const struct udphdr *udphdr, const struct iphdr *iphdr, int size_ip, const void *payload, const void *data_end) {
-	bpf_printk("   Src port: %d\n", ntohs(udp->uh_sport));
-	bpf_printk("   Dst port: %d\n", ntohs(udp->uh_dport));
-
-	/******************************************************************/
-	// Check if is QUIC packet
-	unsigned long size_payload = (unsigned long)data_end - (unsigned long)payload;
-	bpf_printk("The size of the payload is %lu\n", size_payload);
-
-	// Minimum QUIC paquet length
-	// - Flag (1B)
-	// - Connection ID's (8B)
-	// - Version (4B)
-	if (size_payload < 13) {
-		return;
-	}
-
-	// Parse 1 bytes
-	uint8_t header = (uint8_t)payload[0];
-	const uint8_t XOR_HEADER = 0x80;
-	int longForm = 0;
-
-	if ((header & XOR_HEADER) == 0) {
-		bpf_printk("   Possible SHORT HEADER");
-		return;
-	}
-
-	uint32_t version;
-	version = ((((uint32_t)payload[1]) << 24) +
-	       (((uint32_t)payload[2]) << 16) +
-	       (((uint32_t)payload[3]) << 8) +
-	       (((uint32_t)payload[4]) << 0));
-	bpf_printk("   VERSION: %8x \n", version);
-
-	if (version == spindump_quic_version_rfc) {
-		bpf_printk("  *********************\n");
-		bpf_printk("   DETECTED QUIC PACKET\n");
-		bpf_printk("   VERSION: IETF %8x\n", version);
-		process_quic_long_header(payload, version, data_end);
-		bpf_printk("  *********************\n");
-
-		return;
-	}
-	if (version == spindump_quic_version_draft29) {
-		bpf_printk("  *********************\n");
-		bpf_printk("   DETECTED QUIC PACKET\n");
-		bpf_printk("   VERSION: DRAFT 29 %8x\n", version);
-		process_quic_long_header(payload, version, data_end);
-		bpf_printk("  *********************\n");
-		return;
-	}
-	bpf_printk("   QUIC OR NOT, VERSION NOT FOUND\n");
-}
 
 SEC("xdp_program")
 int  xdp_pass_func(struct xdp_md *ctx) {
 	__u32 action = XDP_PASS; /* XDP_PASS = 2 */
-		int eth_type, ip_type;
+	int eth_type, ip_type;
 	struct ethhdr *eth;
 	struct iphdr *iphdr;
-	struct ipv6hdr *ipv6hdr;
+	// struct ipv6hdr *ipv6hdr;
 	struct udphdr *udphdr;
 	struct tcphdr *tcphdr;
 	void *data_end = (void *)(long)ctx->data_end;
@@ -137,32 +50,57 @@ int  xdp_pass_func(struct xdp_md *ctx) {
 
 	if (eth_type == bpf_htons(ETH_P_IP)) {
 		ip_type = parse_iphdr(&nh, data_end, &iphdr);
-	} else if (eth_type == bpf_htons(ETH_P_IPV6)) {
+	} /*else if (eth_type == bpf_htons(ETH_P_IPV6)) {
 		ip_type = parse_ip6hdr(&nh, data_end, &ipv6hdr);
-	} else {
+	} */ else {
 		goto out;
 	}
+
+	__be16 sport, dport;
+	sport = dport = 0;
 
 	if (ip_type == IPPROTO_UDP) {
 		if (parse_udphdr(&nh, data_end, &udphdr) < 0) {
 			action = XDP_ABORTED;
 			goto out;
 		}
-		// udphdr->dest = bpf_htons(bpf_ntohs(udphdr->dest) - 1);
-	        process_udp(udp, ip, size_ip, nh.pos, data_end);
+		// Port to little endian: bpf_ntohs(udphdr->dest)
+	        sport = udphdr->source;
+	        dport = udphdr->dest;
 	} else if (ip_type == IPPROTO_TCP) {
 		if (parse_tcphdr(&nh, data_end, &tcphdr) < 0) {
 			action = XDP_ABORTED;
 			goto out;
 		}
-		// tcphdr->dest = bpf_htons(bpf_ntohs(tcphdr->dest) - 1);
-		// TODO: complete in the future
+	        sport = tcphdr->source;
+	        dport = tcphdr->dest;		
+	} else {
+		goto out;
+	}
+	
+	struct flow curr_flow;
+	__builtin_memset(&curr_flow, 0, sizeof(curr_flow)); // PAD, otherwise the verifier may not be happy!!
+	curr_flow.saddr = iphdr->saddr;
+	curr_flow.daddr = iphdr->daddr;
+	curr_flow.sport = sport;
+	curr_flow.dport = dport;
+	curr_flow.protocol = iphdr->protocol;
+	
+	bpf_printk("Looking up eBPF element\n");
+	int times = 1;
+	__u32 *n_times = bpf_map_lookup_elem(&xdp_flow_map, &curr_flow);
+	
+	if (!n_times) {
+		bpf_printk("writing in the new element of the eBPF map\n");
+		bpf_map_update_elem(&xdp_flow_map, &curr_flow, &times, BPF_ANY);
+	} else {
+		*n_times = *n_times+1;
 	}
 
 	
-
+	
 out:
-	return xdp_stats_record_action(ctx, action);
+	return action;
 }
 
 char _license[] SEC("license") = "GPL";

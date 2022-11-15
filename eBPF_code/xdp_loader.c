@@ -21,7 +21,7 @@ static const char *__doc__ = "XDP loader\n"
 #include "./common/common_params.h"
 #include "./common/common_user_bpf_xdp.h"
 #include "./common/common_libbpf.h"
-#include "common_kern_user.h"
+#include "common_kern_user_datastructure.h"
 
 static const char *default_filename = "xdp_prog_kern.o";
 
@@ -65,7 +65,7 @@ static const struct option_wrapper long_options[] = {
 #endif
 
 const char *pin_basedir =  "/sys/fs/bpf";
-const char *map_name    =  "xdp_stats_map";
+const char *map_name    =  "xdp_flow_map";
 
 /* Pinning maps under /sys/fs/bpf in subdir */
 int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, const char *subdir)
