@@ -44,3 +44,13 @@ Teardown environment:
 
 Reset environment:
 	sudo ./testenv/testenv.sh reset --name veth
+
+Make veth connect to the Internet (without DNS though):
+VETH: 	ip route add default via 10.11.1.1
+MACHINE:	sudo iptables -A FORWARD -i wlp4s0 -o veth -j ACCEPT
+		sudo iptables -A FORWARD -o wlp4s0 -i veth -j ACCEPT
+		sudo iptables -t nat -A POSTROUTING -s 10.11.1.2/24 -o wlp4s0 -j MASQUERADE
+		echo 1 > /proc/sys/net/ipv4/ip_forward
+		sysctl -a
+		mkdir -p /etc/netns/veth
+		ln -s /run/systemd/resolve/resolv.conf /etc/netns/veth/resolv.conf
