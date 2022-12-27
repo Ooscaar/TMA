@@ -53,12 +53,13 @@ all: llvm-check $(USER_TARGETS) $(XDP_OBJ) $(COPY_LOADER) $(COPY_STATS)
 .PHONY: clean $(CLANG) $(LLC)
 
 clean:
-	rm -rf $(LIBBPF_DIR)/build
-	$(MAKE) -C $(LIBBPF_DIR) clean
-	$(MAKE) -C $(COMMON_DIR) clean
-	rm -f $(USER_TARGETS) $(XDP_OBJ) $(USER_OBJ) $(COPY_LOADER) $(COPY_STATS)
-	rm -f *.ll
-	rm -f *~
+	echo "Disabled option"
+	# rm -rf $(LIBBPF_DIR)/build
+	# $(MAKE) -C $(LIBBPF_DIR) clean
+	# $(MAKE) -C $(COMMON_DIR) clean
+	# rm -f $(USER_TARGETS) $(XDP_OBJ) $(USER_OBJ) $(COPY_LOADER) $(COPY_STATS)
+	# rm -f *.ll
+	# rm -f *~
 
 ifdef COPY_LOADER
 $(COPY_LOADER): $(LOADER_DIR)/${COPY_LOADER:=.c} $(COMMON_H)

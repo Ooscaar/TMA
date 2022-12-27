@@ -22,4 +22,4 @@ common_libbpf.o: common_libbpf.c common_libbpf.h
 .PHONY: clean
 
 clean:
-	rm -f *.o
+	echo "Disabled option" # rm -f *.o

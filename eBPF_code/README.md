@@ -36,7 +36,7 @@ sudo apt install traceroute
 sudo ./testenv/testenv.sh --legacy-ip setup --name veth
 ```
 
-How to give Internet access to the machine:
+How to give Internet access to the machine (*change wlp4s0 for your interface name*):
 * From the main Machine:
 ```
 sudo iptables -A FORWARD -i wlp4s0 -o veth -j ACCEPT
@@ -44,8 +44,8 @@ sudo iptables -A FORWARD -o wlp4s0 -i veth -j ACCEPT
 sudo iptables -t nat -A POSTROUTING -s 10.11.1.2/24 -o wlp4s0 -j MASQUERADE
 echo 1 > sudo /proc/sys/net/ipv4/ip_forward
 sysctl -a
-mkdir -p /etc/netns/veth
-ln -s /run/systemd/resolve/resolv.conf /etc/netns/veth/resolv.conf
+sudo mkdir -p /etc/netns/veth
+sudo ln -s /run/systemd/resolve/resolv.conf /etc/netns/veth/resolv.conf
 ```
 
 * From the virtual interface:
