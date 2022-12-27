@@ -23,20 +23,20 @@ This directory contains the code of the eBPF program.
 
 ## Dependencies
 ```
-	cd $HOME
-	mkdir XDP_tutorial ; cd XDP_tutorial
-	git clone https://github.com/xdp-project/xdp-tutorial .
-	git submodule update --init
-	git clone --recurse-submodules https://github.com/xdp-project/xdp-tutorial
+cd $HOME
+mkdir XDP_tutorial ; cd XDP_tutorial
+git clone https://github.com/xdp-project/xdp-tutorial .
+git submodule update --init
+git clone --recurse-submodules https://github.com/xdp-project/xdp-tutorial
 
-	sudo apt install clang llvm libelf-dev libpcap-dev gcc-multilib build-essential
-	sudo apt install linux-tools-$(uname -r)
-	sudo apt install linux-headers-$(uname -r)
-	sudo apt install linux-tools-common linux-tools-generic
-	sudo apt install tcpdump
-	sudo apt install ethtool
-	sudo apt install socat
-	sudo apt install traceroute
+sudo apt install clang llvm libelf-dev libpcap-dev gcc-multilib build-essential
+sudo apt install linux-tools-$(uname -r)
+sudo apt install linux-headers-$(uname -r)
+sudo apt install linux-tools-common linux-tools-generic
+sudo apt install tcpdump
+sudo apt install ethtool
+sudo apt install socat
+sudo apt install traceroute
 ```
 
 ## Setup the virtual interface
@@ -47,20 +47,20 @@ sudo ./testenv/testenv.sh --legacy-ip setup --name veth
 How to give Internet access to the machine:
 * From the main Machine:
 ```
-		sudo iptables -A FORWARD -i wlp4s0 -o veth -j ACCEPT
-		sudo iptables -A FORWARD -o wlp4s0 -i veth -j ACCEPT
-		sudo iptables -t nat -A POSTROUTING -s 10.11.1.2/24 -o wlp4s0 -j MASQUERADE
-		echo 1 > sudo /proc/sys/net/ipv4/ip_forward
-		sysctl -a
-		mkdir -p /etc/netns/veth
-		ln -s /run/systemd/resolve/resolv.conf /etc/netns/veth/resolv.conf
+sudo iptables -A FORWARD -i wlp4s0 -o veth -j ACCEPT
+sudo iptables -A FORWARD -o wlp4s0 -i veth -j ACCEPT
+sudo iptables -t nat -A POSTROUTING -s 10.11.1.2/24 -o wlp4s0 -j MASQUERADE
+echo 1 > sudo /proc/sys/net/ipv4/ip_forward
+sysctl -a
+mkdir -p /etc/netns/veth
+ln -s /run/systemd/resolve/resolv.conf /etc/netns/veth/resolv.conf
 ```
 
 * From the virtual interface:
 
 ```
- 		sudo ip netns exec veth /bin/bash
-		ip route add default via 10.11.1.1
+sudo ip netns exec veth /bin/bash
+ip route add default via 10.11.1.1
 ```
 
 ## Load eBPF program
@@ -151,7 +151,7 @@ Printf does not work on eBPF, but there is an alternative:
 bpf_printk("%d", nh_type);
 ```
 
-From another terminal, 
+Those values can be read from another terminal in the main machine:
 ```
 cat /sys/kernel/debug/tracing/trace_pipe
 ```
