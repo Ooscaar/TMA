@@ -5,7 +5,7 @@ all: common_params.o common_user_bpf_xdp.o common_libbpf.o
 
 CFLAGS := -g -Wall
 
-BASE_DIR = `cat ../LIBBPF_DIR`
+BASE_DIR = `pwd`
 
 LIBBPF_DIR = $(BASE_DIR)/libbpf/src/
 CFLAGS += -I$(LIBBPF_DIR)/build/usr/include/  -I$(BASE_DIR)/headers

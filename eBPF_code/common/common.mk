@@ -20,7 +20,7 @@ USER_C := ${USER_TARGETS:=.c}
 USER_OBJ := ${USER_C:.c=.o}
 
 # Expect this is defined by including Makefile, but define if not
-BASE_DIR = `cat ./LIBBPF_DIR`
+BASE_DIR = `pwd`
 COMMON_DIR ?= ../common/
 LIBBPF_DIR ?= $(BASE_DIR)/libbpf/src/
 

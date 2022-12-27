@@ -7,7 +7,7 @@ USER_TARGETS += block_flow
 USER_TARGETS += unblock_flow
 USER_TARGETS += xdp_list_blocked
 
-BASE_DIR = `cat ./LIBBPF_DIR`
+BASE_DIR = `pwd`
 
 LIBBPF_DIR = $(BASE_DIR)/libbpf/src/
 COMMON_DIR = ./common/

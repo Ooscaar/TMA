@@ -3,8 +3,6 @@
 This directory contains the code of the eBPF program.
 
 ## File recap
-* __LIBBPF_DIR:__ File that stores the path of the forked eBPF project.
-
 * __block_flow.c:__ Program that blocks a specific flow that receives as input.
 
 * __unblock_flow.c:__ Program that unblocks a specific flow that receives as input.
@@ -23,12 +21,6 @@ This directory contains the code of the eBPF program.
 
 ## Dependencies
 ```
-cd $HOME
-mkdir XDP_tutorial ; cd XDP_tutorial
-git clone https://github.com/xdp-project/xdp-tutorial .
-git submodule update --init
-git clone --recurse-submodules https://github.com/xdp-project/xdp-tutorial
-
 sudo apt install clang llvm libelf-dev libpcap-dev gcc-multilib build-essential
 sudo apt install linux-tools-$(uname -r)
 sudo apt install linux-headers-$(uname -r)
@@ -64,10 +56,9 @@ ip route add default via 10.11.1.1
 ```
 
 ## Load eBPF program
-Every program is compiled using the make command.
+Every program is compiled at the same time using the make command.
 
 ```
-echo "/home/albert/Documents/TMA_Project/" > LIBBPF_DIR
 sudo ./xdp_loader --dev veth --force
 ```
 

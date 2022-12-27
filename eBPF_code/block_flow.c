@@ -44,7 +44,6 @@ static void add_blocked(int map_fd, struct flow *block_it)
 {
 	int times;
 	
-	
 	if (!bpf_map_lookup_elem(map_fd, block_it, &times)) {
 		printf("Writing the new blocked flow to the map!\n");
 		times = 1;
