@@ -22,7 +22,7 @@ static const char *__doc__ = "XDP stats program\n"
 #include "./common/common_params.h"
 #include "./common/common_user_bpf_xdp.h"
 #include "common_kern_user_datastructure.h"
-#include "bpf_util.h" /* bpf_num_possible_cpus */
+#include "bpf_util.h"
 
 #define IP_ADDR_ARRAY_SIZE 16
 
@@ -39,38 +39,20 @@ static const struct option_wrapper long_options[] = {
 	{{0, 0, NULL,  0 }}
 };
 
-void quick_parse_IP_addr(unsigned int addr, char* res) {
-	sprintf(res, "%d.%d.%d.%d", (addr & 0xFF000000)>>24, (addr & 0xFF0000)>>16, (addr & 0xFF00)>>8, addr & 0xFF);
-}
 
-static void flows_poll(int map_fd)
+static void add_blocked(int map_fd, struct flow *block_it)
 {
-	struct flow *cur_key = NULL;
-	struct flow next_key;
-	__u32 value;
-	int err;
-
-	__builtin_memset(&next_key, 0, sizeof(next_key));
-
-	err = bpf_map_get_next_key(map_fd, cur_key, &next_key);
-	while (!err) {
-		bpf_map_lookup_elem(map_fd, &next_key, &value);
-
-		char src_addr[IP_ADDR_ARRAY_SIZE];
-		char dst_addr[IP_ADDR_ARRAY_SIZE];
-		quick_parse_IP_addr(be32toh(next_key.saddr), &src_addr[0]);
-		quick_parse_IP_addr(be32toh(next_key.daddr), &dst_addr[0]);
-		
-		// printf("source IP addr %u, destination IP addr %u, source port %hu, destination port %hu, protocol %u, %u times\n", next_key.saddr, next_key.daddr, next_key.sport, next_key.dport, next_key.protocol, value);
-
-		printf("source IP addr %s, destination IP addr %s, source port %hu, destination port %hu, protocol %u, %u times\n", src_addr, dst_addr, be16toh(next_key.sport), be16toh(next_key.dport), next_key.protocol, value);
-		
-        
-     		cur_key = &next_key;
-     		
-		err = bpf_map_get_next_key(map_fd, cur_key, &next_key);
+	int times;
+	
+	
+	if (!bpf_map_lookup_elem(map_fd, block_it, &times)) {
+		times = 0;
+		bpf_map_update_elem(map_fd, block_it, &times, BPF_ANY);
+	} else {
+		printf("The flow was not blocked!\n");
 	}
 }
+
 
 #ifndef PATH_MAX
 #define PATH_MAX	4096
@@ -109,12 +91,12 @@ int main(int argc, char **argv)
 		return EXIT_FAIL_OPTION;
 	}
 
-	stats_map_fd = open_bpf_map_file(pin_dir, "xdp_flow_map", &info);
+	stats_map_fd = open_bpf_map_file(pin_dir, "xdp_blocked_flows", &info);
 	if (stats_map_fd < 0) {
 		return EXIT_FAIL_BPF;
 	}
 
-	/* check map info, e.g. datarec is expected size */
+	/* check map info */
 	map_expect.key_size    = sizeof(struct flow);
 	map_expect.value_size  = sizeof(__u32);
 	map_expect.max_entries = MAX_FLOWS_ENTRIES;
@@ -123,15 +105,45 @@ int main(int argc, char **argv)
 		fprintf(stderr, "ERR: map via FD not compatible\n");
 		return err;
 	}
-	if (verbose) {
-		printf("\nCollecting stats from BPF map\n");
-		printf(" - BPF map (bpf_map_type:%d) id:%d name:%s"
-		       " key_size:%d value_size:%d max_entries:%d\n",
-		       info.type, info.id, info.name,
-		       info.key_size, info.value_size, info.max_entries
-		       );
-	}
+	
+	printf("Please introduce the flow you want to block using the following syntax: src_IP dst_IP src_port dst_port L4_protocol (Eg. 6 is TCP and 17 is UDP).\n");
+	printf("For example: 10.11.1.2 80.58.61.250 38772 53 17\n");
+	
+	uint8_t src_IP_arr[4];
+	uint8_t dst_IP_arr[4];
+	uint16_t src_port;
+	uint16_t dst_port;
+	uint8_t protocol;
+	
+	scanf("%hhu.%hhu.%hhu.%hhu", &(src_IP_arr[0]), &(src_IP_arr[1]), &(src_IP_arr[2]), &(src_IP_arr[3]));
+	scanf("%hhu.%hhu.%hhu.%hhu", &(dst_IP_arr[0]), &(dst_IP_arr[1]), &(dst_IP_arr[2]), &(dst_IP_arr[3]));
+	scanf("%hu", &src_port);
+	scanf("%hu", &dst_port);
+	scanf("%hhu", &protocol);
 
-	flows_poll(stats_map_fd);
+	printf("Scanned valued: %hhu.%hhu.%hhu.%hhu, %hhu.%hhu.%hhu.%hhu, %hu, %hu, %hhu\n", src_IP_arr[0], src_IP_arr[1], src_IP_arr[2], src_IP_arr[3], dst_IP_arr[0], dst_IP_arr[1], dst_IP_arr[2], dst_IP_arr[3], src_port, dst_port, protocol);
+
+	__be32 src_IP;
+	__be32 dst_IP;
+	__be16  sport;
+	__be16  dport;
+        
+        src_IP = htobe32(((src_IP_arr[0] & 0xFF) << 24) + ((src_IP_arr[1] & 0xFF) << 16) + ((src_IP_arr[2] & 0xFF) << 8) + (src_IP_arr[3] & 0xFF));
+        dst_IP = htobe32(((dst_IP_arr[0] & 0xFF) << 24) + ((dst_IP_arr[1] & 0xFF) << 16) + ((dst_IP_arr[2] & 0xFF) << 8) + (dst_IP_arr[3] & 0xFF));
+        sport = htobe16(src_port);
+        dport = htobe16(dst_port);
+	
+	struct flow block_it;
+	
+	__builtin_memset(&block_it, 0, sizeof(block_it));
+	
+	block_it.saddr = src_IP;
+	block_it.daddr = dst_IP;
+	block_it.sport = sport;
+	block_it.dport = dport;
+	block_it.protocol = protocol;
+
+	add_blocked(stats_map_fd, &block_it);
+
 	return EXIT_OK;
 }

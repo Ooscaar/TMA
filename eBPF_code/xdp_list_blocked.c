@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 static const char *__doc__ = "XDP stats program\n"
-	" - Finding xdp_flow_map via --dev name info\n";
+	" - Finding xdp_blocked_flows via --dev name info\n";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +22,7 @@ static const char *__doc__ = "XDP stats program\n"
 #include "./common/common_params.h"
 #include "./common/common_user_bpf_xdp.h"
 #include "common_kern_user_datastructure.h"
-#include "bpf_util.h" /* bpf_num_possible_cpus */
+#include "bpf_util.h"
 
 #define IP_ADDR_ARRAY_SIZE 16
 
@@ -59,11 +59,9 @@ static void flows_poll(int map_fd)
 		char src_addr[IP_ADDR_ARRAY_SIZE];
 		char dst_addr[IP_ADDR_ARRAY_SIZE];
 		quick_parse_IP_addr(be32toh(next_key.saddr), &src_addr[0]);
-		quick_parse_IP_addr(be32toh(next_key.daddr), &dst_addr[0]);
-		
-		// printf("source IP addr %u, destination IP addr %u, source port %hu, destination port %hu, protocol %u, %u times\n", next_key.saddr, next_key.daddr, next_key.sport, next_key.dport, next_key.protocol, value);
+		quick_parse_IP_addr(be32toh(next_key.daddr), &dst_addr[0]);		
 
-		printf("source IP addr %s, destination IP addr %s, source port %hu, destination port %hu, protocol %u, %u times\n", src_addr, dst_addr, be16toh(next_key.sport), be16toh(next_key.dport), next_key.protocol, value);
+		printf("source IP addr %s, destination IP addr %s, source port %hu, destination port %hu, protocol %u, is_blocked = %u\n", src_addr, dst_addr, be16toh(next_key.sport), be16toh(next_key.dport), next_key.protocol, value);
 		
         
      		cur_key = &next_key;
@@ -109,7 +107,7 @@ int main(int argc, char **argv)
 		return EXIT_FAIL_OPTION;
 	}
 
-	stats_map_fd = open_bpf_map_file(pin_dir, "xdp_flow_map", &info);
+	stats_map_fd = open_bpf_map_file(pin_dir, "xdp_blocked_flows", &info);
 	if (stats_map_fd < 0) {
 		return EXIT_FAIL_BPF;
 	}

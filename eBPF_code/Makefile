@@ -3,6 +3,9 @@
 XDP_TARGETS  := xdp_prog_kern
 USER_TARGETS := xdp_loader
 USER_TARGETS += xdp_stats
+USER_TARGETS += block_flow
+USER_TARGETS += unblock_flow
+USER_TARGETS += xdp_list_blocked
 
 BASE_DIR = `cat ./LIBBPF_DIR`
 

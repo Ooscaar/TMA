@@ -50,7 +50,35 @@ VETH: 	ip route add default via 10.11.1.1
 MACHINE:	sudo iptables -A FORWARD -i wlp4s0 -o veth -j ACCEPT
 		sudo iptables -A FORWARD -o wlp4s0 -i veth -j ACCEPT
 		sudo iptables -t nat -A POSTROUTING -s 10.11.1.2/24 -o wlp4s0 -j MASQUERADE
-		echo 1 > /proc/sys/net/ipv4/ip_forward
+		echo 1 > sudo /proc/sys/net/ipv4/ip_forward
 		sysctl -a
 		mkdir -p /etc/netns/veth
 		ln -s /run/systemd/resolve/resolv.conf /etc/netns/veth/resolv.conf
+
+
+
+Big endian to human-readable:
+	source IP addr 33622794, destination IP addr 4198316624, source port 29847, destination port 13568, protocol 17, 1 times
+	source IP addr 10.11.1.2, destination IP addr 80.58.61.250, source port 38772, destination port 53, protocol 17, 1 times
+
+
+
+
+VETH: ncat -lp 6969 -e /bin/bash
+MACHINE: nc -q 0 10.11.1.2 6969
+
+
+sudo ./xdp_loader --force --dev veth
+sudo ./xdp_stats --dev veth
+sudo ./xdp_list_blocked --dev veth
+sudo ./block_flow --dev veth
+10.11.1.2 10.11.1.1 6969 33008 6
+
+
+
+
+
+
+
+
+

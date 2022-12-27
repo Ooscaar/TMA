@@ -16,7 +16,7 @@ static const char *__doc__ = "XDP loader\n"
 #include <bpf/libbpf.h>
 
 #include <net/if.h>
-#include <linux/if_link.h> /* depend on kernel-headers installed */
+#include <linux/if_link.h>
 
 #include "./common/common_params.h"
 #include "./common/common_user_bpf_xdp.h"
@@ -65,10 +65,9 @@ static const struct option_wrapper long_options[] = {
 #endif
 
 const char *pin_basedir =  "/sys/fs/bpf";
-const char *map_name    =  "xdp_flow_map";
 
 /* Pinning maps under /sys/fs/bpf in subdir */
-int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, const char *subdir)
+int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, const char *subdir, char *map_name)
 {
 	char map_filename[PATH_MAX];
 	char pin_dir[PATH_MAX];
@@ -79,6 +78,8 @@ int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, const char *subdir)
 		fprintf(stderr, "ERR: creating pin dirname\n");
 		return EXIT_FAIL_OPTION;
 	}
+
+
 
 	len = snprintf(map_filename, PATH_MAX, "%s/%s/%s",
 		       pin_basedir, subdir, map_name);
@@ -149,10 +150,25 @@ int main(int argc, char **argv)
 	}
 
 	/* Use the --dev name as subdir for exporting/pinning maps */
-	err = pin_maps_in_bpf_object(bpf_obj, cfg.ifname);
+	char *map_name = malloc(100);
+	map_name =  "xdp_flow_map";
+	
+	err = pin_maps_in_bpf_object(bpf_obj, cfg.ifname, map_name);
 	if (err) {
 		fprintf(stderr, "ERR: pinning maps\n");
 		return err;
+	} else {
+		fprintf(stderr, "First map successfully pinned!\n");
+	}
+	
+	map_name = "xdp_blocked_flows";
+	
+	err = pin_maps_in_bpf_object(bpf_obj, cfg.ifname, map_name);
+	if (err) {
+		fprintf(stderr, "ERR: pinning maps\n");
+		return err;
+	} else {
+		fprintf(stderr, "Second map successfully pinned!\n");
 	}
 
 	return EXIT_OK;
