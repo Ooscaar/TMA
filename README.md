@@ -3,7 +3,7 @@ TMA project
 
 ## Middleware
 
-First, follow instruction from [ebpf_code/README.md](ebpf_code/README.md) to generate the corresponding eBPF code and eBPF maps.
+First, follow instruction from [eBPF_code/README.md](eBPF_code/README.md) to generate the corresponding eBPF code and eBPF maps.
 
 Then, you can build the middleware with:
 
@@ -17,15 +17,15 @@ Or just run it with:
 $: go run main.go
 ```
 
-The server will be available on port `http://localhost:8000`.
+The server will be available on port http://localhost:8000.
 
 Note: make sure to run the middleware as root.
 
 ## API
 
-## Get flows
+### Get flows
 
-```
+```http
 GET /flows
 ```
 
@@ -37,15 +37,15 @@ Response:
 0a0b01020a0b01011b9e1b9f06000000,10.11.1.2,7070,10.11.1.1,7071,6
 ```
 
-## Block flow
+### Block flow
 
-```
+```http
 POST /flows/{id}/block
 ```
 
-## Unblock flow
+### Unblock flow
 
-```
+```http
 POST /flows/{id}/unblock
 ```
 
