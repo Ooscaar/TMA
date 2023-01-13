@@ -32,9 +32,8 @@ GET /flows
 Response: 
 
 ```csv
-# id,src_ip,src_port,dst_ip,dst_port,protocol
-0a0b01020a0b01011b391b9e06000000,10.11.1.2,6969,10.11.1.1,7070,6
-0a0b01020a0b01011b9e1b9f06000000,10.11.1.2,7070,10.11.1.1,7071,6
+# id,src_ip,src_port,dst_ip,dst_port,protocol,blocked,bytes,packets
+0a0b01020a0b01011b391b9e06000000,10.11.1.2,6969,10.11.1.1,7070,6,0,13473856056937,7
 ```
 
 ### Block flow

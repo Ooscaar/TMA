@@ -14,9 +14,9 @@ import (
 
 // Define global const variables for the paths of the ebpf maps
 const (
-	xdpFlows = "/sys/fs/bpf/veth/xdp_flow_map"
+	xdpFlowsPath = "/sys/fs/bpf/veth/xdp_flow_map"
 
-	xdpBlockedFlows = "/sys/fs/bpf/veth/xdp_blocked_flows"
+	xdpBlockedFlowsPath = "/sys/fs/bpf/veth/xdp_blocked_flows"
 )
 
 // from eBPF_code/common_kern_user_datastructure.h
@@ -34,6 +34,19 @@ type Flow struct {
 	sport    uint16
 	dport    uint16
 	protocol uint8
+}
+
+type FlowInfo struct {
+	Packets uint32
+	Bytes   uint64
+}
+
+// MapRecord:
+// key: flow
+// value: FlowInfo
+type MapRecord struct {
+	key   Flow
+	value FlowInfo
 }
 
 // TEMPORAL: returned as csv string
@@ -77,29 +90,64 @@ func NewFlowFromBytes(data []byte) (Flow, error) {
 	}, nil
 }
 
-func getFlows() ([]Flow, error) {
-	flowMap, err := ebpf.LoadPinnedMap(xdpFlows, nil)
+func getFlows() ([]MapRecord, error) {
+	flowMap, err := ebpf.LoadPinnedMap(xdpFlowsPath, nil)
 
 	if err != nil {
 		return nil, err
 	}
 
 	var key [16]byte
-	var value uint32
+	var value FlowInfo
 
 	// Iterate values
-	flows := []Flow{}
+	flows := []MapRecord{}
 	iterator := flowMap.Iterate()
 
+	log.Println("Iterating flows")
 	for iterator.Next(&key, &value) {
 		flow, _ := NewFlowFromBytes(key[:])
 
+		log.Println("Found flow")
+
+		log.Printf("Packets: %d", value.Packets)
+		log.Printf("Bytes: %d", value.Bytes)
+
 		// Add to string with newline
-		flows = append(flows, flow)
+		flows = append(flows, MapRecord{
+			key:   flow,
+			value: value,
+		})
+
 	}
 
 	log.Printf("Found %d flows", len(flows))
 	return flows, nil
+}
+
+func isFlowBlocked(key []byte) (int, error) {
+	// Key must be 16 bytes
+	if len(key) != 16 {
+		log.Printf("Key must be 16 bytes")
+		return 0, fmt.Errorf("key must be 16 bytes")
+	}
+
+	flowsBlockedMap, err := ebpf.LoadPinnedMap(xdpBlockedFlowsPath, nil)
+
+	if err != nil {
+		return 0, err
+	}
+
+	// Check already blocked
+	var value uint32
+	_ = flowsBlockedMap.Lookup(&key, &value)
+
+	if value == 1 {
+		log.Printf("Flow already blocked")
+		return 1, nil
+	}
+
+	return 0, nil
 }
 
 func blockFlow(key []byte) error {
@@ -108,7 +156,7 @@ func blockFlow(key []byte) error {
 		log.Printf("Key must be 16 bytes")
 		return fmt.Errorf("key must be 16 bytes")
 	}
-	flowsMap, err := ebpf.LoadPinnedMap(xdpFlows, nil)
+	flowsMap, err := ebpf.LoadPinnedMap(xdpFlowsPath, nil)
 
 	if err != nil {
 		log.Printf("Error loading pinned map: %s", err)
@@ -127,7 +175,7 @@ func blockFlow(key []byte) error {
 	log.Printf("Flow found, blocking")
 
 	// Check if flow exists
-	flowsBlockedMap, err := ebpf.LoadPinnedMap(xdpBlockedFlows, nil)
+	flowsBlockedMap, err := ebpf.LoadPinnedMap(xdpBlockedFlowsPath, nil)
 
 	if err != nil {
 		return err
@@ -160,7 +208,7 @@ func unblockFlow(key []byte) error {
 		log.Printf("Key must be 16 bytes")
 		return fmt.Errorf("key must be 16 bytes")
 	}
-	flowsMap, err := ebpf.LoadPinnedMap(xdpFlows, nil)
+	flowsMap, err := ebpf.LoadPinnedMap(xdpFlowsPath, nil)
 
 	if err != nil {
 		log.Printf("Error loading pinned map: %s", err)
@@ -179,7 +227,7 @@ func unblockFlow(key []byte) error {
 	log.Printf("Flow found, unblocking")
 
 	// Check if flow exists
-	flowsBlockedMap, err := ebpf.LoadPinnedMap(xdpBlockedFlows, nil)
+	flowsBlockedMap, err := ebpf.LoadPinnedMap(xdpBlockedFlowsPath, nil)
 
 	if err != nil {
 		return err
@@ -223,14 +271,21 @@ func flowsGet(w http.ResponseWriter, req *http.Request) {
 	for _, flow := range flows {
 
 		// Use the marshaler of the Flow struct as an id
-		id, err := flow.MarshalBinary()
+		id, err := flow.key.MarshalBinary()
+
+		if err != nil {
+			panic(err)
+		}
+
+		// Get if is blocked
+		isBlocked, err := isFlowBlocked(id)
 
 		if err != nil {
 			panic(err)
 		}
 
 		// Print key as hex
-		fmt.Fprintf(w, "%x,%s\n", id, flow)
+		fmt.Fprintf(w, "%x,%s,%d,%d,%d\n", id, flow.key, isBlocked, flow.value.Bytes, flow.value.Packets)
 		counter++
 	}
 }
