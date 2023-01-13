@@ -1,0 +1,83 @@
+https://unix.stackexchange.com/questions/450421/generate-traffic-with-a-specified-throughput
+
+veth (10.11.1.2):
+	dd if=/dev/urandom bs=1000 count=1000 | pv -L 10M | nc 10.11.1.1 4444 -p 4445
+
+machine (10.11.1.1):
+	nc -lp 4444 > /dev/null
+
+The flow is: (10.11.1.2 10.11.1.1 4445 4444 6) ?
+
+echo "10.11.1.2 10.11.1.1 4445 4444 6" | sudo ./block_flow --dev veth
+echo "10.11.1.2 10.11.1.1 4445 4444 6" | sudo ./unblock_flow --dev veth
+
+sudo iptables -A INPUT -p tcp --destination-port 4444 -j DROP
+
+
+while true; do dd if=/dev/urandom bs=1000 count=10000 | pv -L 100M ; sleep 1; done | nc 10.11.1.1 4444 -p 4445
+And then click Ctrl+C once
+
+
+- XDP monitoring:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  5.51 GBytes  4.73 Gbits/sec  383             sender
+	[  5]   0.00-10.04  sec  5.51 GBytes  4.71 Gbits/sec                  receiver
+
+- XDP + nc:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  5.27 GBytes  4.53 Gbits/sec  1142             sender
+	[  5]   0.00-10.04  sec  5.27 GBytes  4.51 Gbits/sec                  receiver
+
+- XDP 5.000:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  5.45 GBytes  4.68 Gbits/sec  4118             sender
+	[  5]   0.00-10.04  sec  5.45 GBytes  4.66 Gbits/sec                  receiver
+
+- XDP 5.000 + nc:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  5.04 GBytes  4.33 Gbits/sec  2161             sender
+	[  5]   0.00-10.04  sec  5.04 GBytes  4.31 Gbits/sec                  receiver
+
+- XDP 10.000:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  5.35 GBytes  4.59 Gbits/sec  705             sender
+	[  5]   0.00-10.04  sec  5.35 GBytes  4.57 Gbits/sec                  receiver
+
+- XDP 10.000 + nc:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  4.99 GBytes  4.29 Gbits/sec  821             sender
+	[  5]   0.00-10.04  sec  4.99 GBytes  4.27 Gbits/sec                  receiver
+
+
+- iptables + nc:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  30.2 GBytes  26.0 Gbits/sec  223             sender
+	[  5]   0.00-10.04  sec  30.2 GBytes  25.9 Gbits/sec                  receiver
+
+- iptables 5.000:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  7.22 GBytes  6.20 Gbits/sec  180             sender
+	[  5]   0.00-10.04  sec  7.22 GBytes  6.17 Gbits/sec                  receiver
+
+- iptables 5.000 + nc:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  7.10 GBytes  6.10 Gbits/sec  2199             sender
+	[  5]   0.00-10.04  sec  7.10 GBytes  6.08 Gbits/sec                  receiver
+
+- iptables 10.000:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  4.31 GBytes  3.71 Gbits/sec  122             sender
+	[  5]   0.00-10.04  sec  4.31 GBytes  3.69 Gbits/sec                  receiver
+
+- iptables 10.000 + nc:
+	[ ID] Interval           Transfer     Bitrate         Retr
+	[  5]   0.00-10.00  sec  3.92 GBytes  3.37 Gbits/sec  175             sender
+	[  5]   0.00-10.04  sec  3.92 GBytes  3.36 Gbits/sec                  receiver
+
+
+
+
+
+
+
+
