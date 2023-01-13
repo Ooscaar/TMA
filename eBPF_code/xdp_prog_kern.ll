@@ -13,8 +13,8 @@ target triple = "bpf"
 %struct.udphdr = type { i16, i16, i16, i16 }
 
 @xdp_stats_map = dso_local global %struct.bpf_map_def { i32 6, i32 4, i32 16, i32 5, i32 0 }, section "maps", align 4, !dbg !0
-@xdp_flow_map = dso_local global %struct.bpf_map_def { i32 1, i32 16, i32 4, i32 1000, i32 0 }, section "maps", align 4, !dbg !50
-@xdp_blocked_flows = dso_local global %struct.bpf_map_def { i32 1, i32 16, i32 4, i32 1000, i32 0 }, section "maps", align 4, !dbg !60
+@xdp_flow_map = dso_local global %struct.bpf_map_def { i32 1, i32 16, i32 4, i32 15000, i32 0 }, section "maps", align 4, !dbg !50
+@xdp_blocked_flows = dso_local global %struct.bpf_map_def { i32 1, i32 16, i32 4, i32 15000, i32 0 }, section "maps", align 4, !dbg !60
 @__const.xdp_pass_func.____fmt = private unnamed_addr constant [25 x i8] c"Looking up eBPF element\0A\00", align 1
 @__const.xdp_pass_func.____fmt.1 = private unnamed_addr constant [59 x i8] c"This flow is in the black list, so the program will abort\0A\00", align 1
 @__const.xdp_pass_func.____fmt.2 = private unnamed_addr constant [44 x i8] c"Writing in the new element of the eBPF map\0A\00", align 1

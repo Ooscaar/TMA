@@ -14,6 +14,6 @@ struct flow { // Stored in BIG ENDIAN!
 #define XDP_ACTION_MAX (XDP_REDIRECT + 1)
 #endif
 
-#define MAX_FLOWS_ENTRIES 1000
+#define MAX_FLOWS_ENTRIES 15000
 
 #endif /* __COMMON_KERN_USER_DATASTRUCTURE */

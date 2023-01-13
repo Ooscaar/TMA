@@ -130,7 +130,7 @@ sudo rm /sys/fs/bpf/veth/xdp_stats_map
 sudo rm /sys/fs/bpf/veth/xdp_blocked_flows
 ```
 
-## Teardowm or reset the virtual interface
+## Teardown or reset the virtual interface
 ```
 sudo ./testenv/testenv.sh teardown --name veth
 sudo ./testenv/testenv.sh reset --name veth
