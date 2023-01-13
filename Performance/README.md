@@ -70,37 +70,37 @@ sudo ./xdp_loader --force --dev veth
 ### Results recap
 Please be aware that the bitrate depends on your machine's specs, so the results may vary. However, the results should show a similar result as ours, where iptables does not scale as well as XDP.
 
-* NOTHING in it:
-	[ ID] Interval           Transfer     Bitrate         Retr
-	[  5]   0.00-10.00  sec  32.4 GBytes  27.8 Gbits/sec    0             sender
-	[  5]   0.00-10.04  sec  32.4 GBytes  27.7 Gbits/sec                  receiver
+* NOTHING in it: <br />
+	[ ID] Interval           Transfer     Bitrate         Retr <br />
+	[  5]   0.00-10.00  sec  32.4 GBytes  27.8 Gbits/sec    0             sender <br />
+	[  5]   0.00-10.04  sec  32.4 GBytes  27.7 Gbits/sec                  receiver <br />
 
 
-* IPTABLES ACCEPT, 5000:
-	[ ID] Interval           Transfer     Bitrate         Retr
-	[  5]   0.00-10.00  sec  7.26 GBytes  6.24 Gbits/sec  508             sender
-	[  5]   0.00-10.04  sec  7.26 GBytes  6.21 Gbits/sec                  receiver
+* IPTABLES ACCEPT, 5000: <br />
+	[ ID] Interval           Transfer     Bitrate         Retr <br />
+	[  5]   0.00-10.00  sec  7.26 GBytes  6.24 Gbits/sec  508             sender <br />
+	[  5]   0.00-10.04  sec  7.26 GBytes  6.21 Gbits/sec                  receiver <br />
 
-* IPTABLES ACCEPT, 10000:
-	[ ID] Interval           Transfer     Bitrate         Retr
-	[  5]   0.00-10.00  sec  4.39 GBytes  3.77 Gbits/sec    0             sender
-	[  5]   0.00-10.04  sec  4.39 GBytes  3.75 Gbits/sec                  receiver
+* IPTABLES ACCEPT, 10000: <br />
+	[ ID] Interval           Transfer     Bitrate         Retr <br />
+	[  5]   0.00-10.00  sec  4.39 GBytes  3.77 Gbits/sec    0             sender <br />
+	[  5]   0.00-10.04  sec  4.39 GBytes  3.75 Gbits/sec                  receiver <br />
 
 
-* XDP ACCEPT, 0 flows blocked + monitoring:
-	[ ID] Interval           Transfer     Bitrate         Retr
-	[  5]   0.00-10.00  sec  5.40 GBytes  4.64 Gbits/sec    0             sender
-	[  5]   0.00-10.04  sec  5.40 GBytes  4.62 Gbits/sec                  receiver
+* XDP ACCEPT, 0 flows blocked + monitoring: <br />
+	[ ID] Interval           Transfer     Bitrate         Retr <br />
+	[  5]   0.00-10.00  sec  5.40 GBytes  4.64 Gbits/sec    0             sender <br />
+	[  5]   0.00-10.04  sec  5.40 GBytes  4.62 Gbits/sec                  receiver <br />
 
-* XDP ACCEPT, 5000 flows non-blocked + monitoring:
-	[ ID] Interval           Transfer     Bitrate         Retr
-	[  5]   0.00-10.00  sec  5.41 GBytes  4.64 Gbits/sec    0             sender
-	[  5]   0.00-10.04  sec  5.41 GBytes  4.62 Gbits/sec                  receiver
+* XDP ACCEPT, 5000 flows non-blocked + monitoring: <br />
+	[ ID] Interval           Transfer     Bitrate         Retr <br />
+	[  5]   0.00-10.00  sec  5.41 GBytes  4.64 Gbits/sec    0             sender <br />
+	[  5]   0.00-10.04  sec  5.41 GBytes  4.62 Gbits/sec                  receiver <br />
 
-* XDP ACCEPT, 10000 flows non-blocked + monitoring:
-	[ ID] Interval           Transfer     Bitrate         Retr
-	[  5]   0.00-10.00  sec  5.25 GBytes  4.51 Gbits/sec  635             sender
-	[  5]   0.00-10.04  sec  5.25 GBytes  4.49 Gbits/sec                  receiver
+* XDP ACCEPT, 10000 flows non-blocked + monitoring: <br />
+	[ ID] Interval           Transfer     Bitrate         Retr <br />
+	[  5]   0.00-10.00  sec  5.25 GBytes  4.51 Gbits/sec  635             sender <br />
+	[  5]   0.00-10.04  sec  5.25 GBytes  4.49 Gbits/sec                  receiver <br />
 
 
 
