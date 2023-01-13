@@ -29,7 +29,7 @@ ip route add default via 10.11.1.1
 ### Test the iptables
 * From the main machine:
 ```
-sudo ./iptables_500_rules.sh # Clear iptables: iptables -F
+sudo ./iptables_500_rules.sh # or iptables_10000_rules.sh
 iperf3 -s
 ```
 
@@ -42,7 +42,7 @@ iperf3 -c 10.11.1.1
 * From the main machine:
 ```
 sudo ./xdp_loader --force --dev veth
-sudo ./XDP_5000_rules.sh # Check: sudo ./xdp_list_blocked --dev veth
+sudo ./XDP_5000_rules.sh # or XDP_10000_rules.sh
 iperf3 -s
 ```
 
@@ -67,8 +67,20 @@ sudo ./xdp_loader --dev veth --unload
 sudo ./xdp_loader --force --dev veth
 ```
 
+* Check the list of XDP non-blocked flows:
+```
+sudo ./xdp_list_blocked --dev veth
+```
+
+* Clear iptables:
+```
+sudo iptables -F
+```
+
 ### Results recap
 Please be aware that the bitrate depends on your machine's specs, so the results may vary. However, the results should show a similar result as ours, where iptables does not scale as well as XDP.
+
+The results have been obtained using iperf3.
 
 * NOTHING in it: <br />
 	[ ID] Interval           Transfer     Bitrate         Retr <br />
