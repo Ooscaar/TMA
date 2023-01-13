@@ -47,7 +47,7 @@ static void flows_poll(int map_fd)
 {
 	struct flow *cur_key = NULL;
 	struct flow next_key;
-	__u32 value;
+	struct info_map value;
 	int err;
 
 	__builtin_memset(&next_key, 0, sizeof(next_key));
@@ -63,7 +63,7 @@ static void flows_poll(int map_fd)
 		
 		// printf("source IP addr %u, destination IP addr %u, source port %hu, destination port %hu, protocol %u, %u times\n", next_key.saddr, next_key.daddr, next_key.sport, next_key.dport, next_key.protocol, value);
 
-		printf("source IP addr %s, destination IP addr %s, source port %hu, destination port %hu, protocol %u, %u times\n", src_addr, dst_addr, be16toh(next_key.sport), be16toh(next_key.dport), next_key.protocol, value);
+		printf("source IP addr %s, destination IP addr %s, source port %hu, destination port %hu, protocol %u, %u packets, %llu bytes\n", src_addr, dst_addr, be16toh(next_key.sport), be16toh(next_key.dport), next_key.protocol, value.packets, value.bytes);
 		
         
      		cur_key = &next_key;
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 
 	/* check map info, e.g. datarec is expected size */
 	map_expect.key_size    = sizeof(struct flow);
-	map_expect.value_size  = sizeof(__u32);
+	map_expect.value_size  = sizeof(struct info_map);
 	map_expect.max_entries = MAX_FLOWS_ENTRIES;
 	err = check_map_fd_info(&info, &map_expect);
 	if (err) {

@@ -10,6 +10,11 @@ struct flow { // Stored in BIG ENDIAN!
         __u8    protocol;
 };
 
+struct info_map {
+	__u32 packets;
+	__u64 bytes;
+};
+
 #ifndef XDP_ACTION_MAX
 #define XDP_ACTION_MAX (XDP_REDIRECT + 1)
 #endif

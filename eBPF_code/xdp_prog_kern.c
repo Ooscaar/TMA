@@ -19,7 +19,7 @@
 struct bpf_map_def SEC("maps") xdp_flow_map = {
 	.type        = BPF_MAP_TYPE_HASH,
 	.key_size    = sizeof(struct flow),
-	.value_size  = sizeof(__u32),
+	.value_size  = sizeof(struct info_map),
 	.max_entries = MAX_FLOWS_ENTRIES,
 };
 
@@ -92,14 +92,18 @@ int  xdp_pass_func(struct xdp_md *ctx) {
 		return XDP_DROP;
 	}
 	
-	int times = 1;
-	__u32 *n_times = bpf_map_lookup_elem(&xdp_flow_map, &curr_flow);
+	__u64 pack_length = data_end - data;
+	struct info_map *data_map = bpf_map_lookup_elem(&xdp_flow_map, &curr_flow);
 	
-	if (!n_times) {
+	if (data_map == NULL) {
 		bpf_printk("Writing in the new element of the eBPF map\n");
-		bpf_map_update_elem(&xdp_flow_map, &curr_flow, &times, BPF_ANY);
+		struct info_map new_data;
+		new_data.packets = 1;
+		new_data.bytes = pack_length;
+		bpf_map_update_elem(&xdp_flow_map, &curr_flow, &new_data, BPF_ANY);
 	} else {
-		*n_times = *n_times+1;
+		data_map->packets++;
+		data_map->bytes += pack_length;
 	}
 
 	
