@@ -1,14 +1,20 @@
 #include <ncurses.h>
 #include <string.h>
 #include <sys/types.h>
-#include <unistd.h>
+#include <unistd.h> // for close()
+#include <fcntl.h> // for open
 #include <stdlib.h>
 #include <ctype.h>
 #include <regex.h>
 #include <pthread.h>
 
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+
+#define BACKEND_PORT 3000
 #define TABLE_COLS 8
-#define FLOW_REFRESH_SECONDS 10
+#define FLOW_REFRESH_SECONDS 1
 
 void do_resize(void);
 void setup_bar(void);
@@ -18,7 +24,7 @@ void write_log(char log[]);
 
 typedef struct Flow {
     char id[50];
-    bool active;
+    bool blocked;
     char src_ip[16];
     char dst_ip[16];
     char protocol[4]; // TCP or UDP
@@ -48,29 +54,76 @@ static int position;
 static int windowPositions[2] = {-1, -1};
 
 void readFlows(void) {
-    Flow* newFlows = (Flow*) malloc(sizeof(Flow));
-    FILE* flowsFile = fopen("./flows.csv", "r");
+    /**/
+    int clientSocket;
+    int bufferSize = 1024;
+    char message[] = "GET /flows HTTP/1.1\r\n\r\n";
+    char* response;
+    struct sockaddr_in serverAddr;
+    socklen_t addr_size;
 
+    clientSocket = socket(PF_INET, SOCK_STREAM, 0);
+
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(BACKEND_PORT);
+    inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+    connect(clientSocket, (struct sockaddr*) &serverAddr, sizeof(serverAddr));
+
+    // Send the request to the server
+    send(clientSocket, message, strlen(message), 0);
+
+    // Allocate memory on the heap for the response
+    response = (char*) malloc(bufferSize);
+
+    // Receive response from the server
+    int bytesReceived;
+    bytesReceived = recv(clientSocket, response, bufferSize, 0);
+
+    // Check if the response is bigger than the buffer
+    while (bytesReceived == bufferSize) {
+        bufferSize *= 2;
+        response = (char*) realloc(response, bufferSize);
+        bytesReceived += recv(clientSocket, response + bytesReceived, bufferSize - bytesReceived, 0);
+    }
+    close(clientSocket);
+
+    // Parse the HTTP body
+    bool isBody = false;
+    for(int i = 0; response[i] != '\0'; i++) {
+        if(isBody) sprintf(response, "%s%c", response, response[i]);
+        else if(response[i] == '\r' && i++ && response[i] == '\n' && i++ && response[i] == '\r'
+            && i++ && response[i] == '\n') {
+            isBody = true;
+            response[0] = '\0';
+        }
+    }
+    /**/
+
+    Flow* newFlows = (Flow*) malloc(sizeof(Flow));
     char atribute[30] = {0};
     int atrCounter = 0;
     int flowsCounter = 0;
     
-    while(1) {
-        char c = (char)fgetc(flowsFile);
+    char c = ' ';
+    int i = 0;
+    while(c != '\0') {
+        c = response[i];
+        i++;
 
         // Add characters
-        if(c != ' ' && c != ',' && c != '\n' && c != EOF) {
+        if(c != ' ' && c != ',' && c != '\n' && c != '\0') {
             sprintf(atribute, "%s%c", atribute, c); // Attach the character to the string
         }
         // Get atribute
-        if(c == ',' || c == '\n' || c == EOF) {
+        if(c == ',' || c == '\n' || c == '\0') {
             if(atrCounter == 0) strcpy(newFlows[flowsCounter].id, atribute);
-            else if(atrCounter == 1) newFlows[flowsCounter].active = strcmp("0", atribute);
-            else if(atrCounter == 2) strcpy(newFlows[flowsCounter].src_ip, atribute);
+            else if(atrCounter == 1) strcpy(newFlows[flowsCounter].src_ip, atribute);
+            else if(atrCounter == 2) strcpy(newFlows[flowsCounter].src_port, atribute);
             else if(atrCounter == 3) strcpy(newFlows[flowsCounter].dst_ip, atribute);
-            else if(atrCounter == 4) strcpy(newFlows[flowsCounter].protocol, atribute);
-            else if(atrCounter == 5) strcpy(newFlows[flowsCounter].src_port, atribute);
-            else if(atrCounter == 6) strcpy(newFlows[flowsCounter].dst_port, atribute);
+            else if(atrCounter == 4) strcpy(newFlows[flowsCounter].dst_port, atribute);
+            else if(atrCounter == 5) strcpy(newFlows[flowsCounter].protocol, atribute);
+            else if(atrCounter == 6) newFlows[flowsCounter].blocked = strcmp("0", atribute);
             else if(atrCounter == 7) strcpy(newFlows[flowsCounter].speed, atribute);
             else if(atrCounter == 8) strcpy(newFlows[flowsCounter].traff, atribute);
 
@@ -84,10 +137,9 @@ void readFlows(void) {
             newFlows = realloc(newFlows, sizeof(Flow) * (flowsCounter + 1));
             atrCounter = 0;
         }
-        if(c == EOF) break;
     }
-
-    fclose(flowsFile);
+    // Free the HTTP response memory allocation
+    free(response);
 
     flowsNumber = flowsCounter + 1;
 
@@ -144,11 +196,32 @@ void* updateFlows(void* arg) {
     }
 }
 
-void blockFlow() {
+void blockUnblockFlow() {
     char* flowId = flowsRegex[position].id;
-    write_log(flowId);
 
-    flowsRegex[position].active = FALSE;
+    flowsRegex[position].blocked = !flowsRegex[position].blocked;
+    char message[100];
+    if(flowsRegex[position].blocked) 
+        sprintf(message, "POST /flows/%s/block HTTP/1.1\r\n\r\n", flowId);
+    else 
+        sprintf(message, "POST /flows/%s/unblock HTTP/1.1\r\n\r\n", flowId);
+
+    int clientSocket;
+    struct sockaddr_in serverAddr;
+    socklen_t addr_size;
+
+    clientSocket = socket(PF_INET, SOCK_STREAM, 0);
+
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(BACKEND_PORT);
+    inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+    connect(clientSocket, (struct sockaddr*) &serverAddr, sizeof(serverAddr));
+
+    // Send the request to the server
+    send(clientSocket, message, strlen(message), 0);
+    close(clientSocket);
+
     write_flows(0);
 }
 
@@ -303,10 +376,10 @@ int write_flows(int diff) {
         else wattroff(window_flows, A_STANDOUT);
         char item[500] = {0};
 
-        if(flowsRegex[i].active) {
-            sprintf(item, "%s%-*s", item, columnWidths[0], "");
-        } else {
+        if(flowsRegex[i].blocked) {
             sprintf(item, "%s%-*s", item, columnWidths[0], "X");
+        } else {
+            sprintf(item, "%s%-*s", item, columnWidths[0], "");
         }
         sprintf(item, "%s%-*s", item, columnWidths[1], flowsRegex[i].src_ip);
         sprintf(item, "%s%-*s", item, columnWidths[2], flowsRegex[i].dst_ip);
@@ -384,7 +457,7 @@ int main() {
                     break;
                 case '\n':
                     // Block the selected flow
-                    blockFlow();
+                    blockUnblockFlow();
                     break;
             }
         } else {
@@ -401,7 +474,6 @@ int main() {
                     position = 0;
                     char str[100];
                     sprintf(str, "%d", position);
-                    write_log(str);
                     write_flows(0);
                     write_filter('\0');
                     break;
