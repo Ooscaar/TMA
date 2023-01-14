@@ -30,7 +30,7 @@ ip route add default via 10.11.1.1
 ### Test the iptables
 * From the main machine:
 ```
-sudo ./iptables_500_rules.sh # or iptables_10000_rules.sh
+sudo iptables -F && sudo ./iptables_N_rules.sh 5000 # where N=5000
 iperf3 -s
 ```
 
@@ -42,14 +42,20 @@ iperf3 -c 10.11.1.1
 ### Test the XDP programs
 * From the main machine:
 ```
-sudo ./xdp_loader --force --dev veth
-sudo ./XDP_5000_rules.sh # or XDP_10000_rules.sh
+sudo ./xdp_loader --force --dev veth && sudo ./XDP_N_rules.sh 5000 # where N=5000
 iperf3 -s
 ```
 
 * From the virtual interface:
+By hand:
 ```
 iperf3 -c 10.11.1.1
+```
+
+Using the automated script that obtains 10 samples and computes the mean:
+```
+cd Results
+./script_results.sh 10.11.1.1 A_results_XDP_5000.txt
 ```
 
 ### Other useful tools:
