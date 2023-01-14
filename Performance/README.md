@@ -8,6 +8,15 @@ sudo apt install iperf3
 sudo apt install jq
 ```
 
+## File recap
+* __iptables_N_rules.sh:__ Script that generates N iptables rules, all of them ACCEPT.
+
+* __XDP_N_rules.sh:__ Script that populates the eBPF blocked flows map with N entries, but all of them are unblocked.
+
+* __script_results.sh:__ Script that makes 10 samples of iperf3 to test the throughput of a specific setup.
+
+* __Results:__ Directory with the raw results of the performance test.
+
 ## How to replicate the results
 ### Set up the virtual interface
 ```
@@ -87,7 +96,7 @@ sudo iptables -F
 ### Results recap
 Please be aware that the bitrate depends on your machine's specs, so the results may vary. However, the results should show a similar result as ours, where iptables does not scale as well as XDP.
 
-The results have been obtained using iperf3 in two different machines.
+The results have been obtained using iperf3 in two different machines, using 10 samples for each number of blocked flows ({0, 100, 500, 1000, 5000, 7500, 10000, 12000}).
 * Machine A, which is the slower one:
 ![Alt text](Results/Machine_A_slow.jpg?raw=true "Title")
 
