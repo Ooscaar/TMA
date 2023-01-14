@@ -30,3 +30,4 @@ B_results_XDP_5000.txt - 9.9783
 B_results_XDP_7500.txt - 10.0869
 B_results_XDP_10000.txt - 10.1485
 B_results_XDP_12000.txt - 10.1397
+B_results_XDP_nothing.txt - 9.9906
