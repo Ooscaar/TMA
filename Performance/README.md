@@ -5,7 +5,7 @@ This directory contains the tools used to analyze the performance of our solutio
 ## Dependencies
 ```
 sudo apt install iperf3
-sudo apt install pv
+sudo apt install jq
 ```
 
 ## How to replicate the results
