@@ -7,12 +7,13 @@
 #include <ctype.h>
 #include <regex.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
 
-#define BACKEND_PORT 3000
+#define BACKEND_PORT 8000
 #define TABLE_COLS 8
 #define FLOW_REFRESH_SECONDS 1
 
@@ -57,7 +58,7 @@ void readFlows(void) {
     /**/
     int clientSocket;
     int bufferSize = 1024;
-    char message[] = "GET /flows HTTP/1.1\r\n\r\n";
+    char message[] = "GET /flows HTTP/1.1\r\nHost: 127.0.0.1:8000\r\n\r\n";
     char* response;
     struct sockaddr_in serverAddr;
     socklen_t addr_size;
@@ -202,9 +203,9 @@ void blockUnblockFlow() {
     flowsRegex[position].blocked = !flowsRegex[position].blocked;
     char message[100];
     if(flowsRegex[position].blocked) 
-        sprintf(message, "POST /flows/%s/block HTTP/1.1\r\n\r\n", flowId);
+        sprintf(message, "POST /flows/%s/block HTTP/1.1\r\nHost: 127.0.0.1:8000\r\n\r\n", flowId);
     else 
-        sprintf(message, "POST /flows/%s/unblock HTTP/1.1\r\n\r\n", flowId);
+        sprintf(message, "POST /flows/%s/unblock HTTP/1.1\r\nHost: 127.0.0.1:8000\r\n\r\n", flowId);
 
     int clientSocket;
     struct sockaddr_in serverAddr;
