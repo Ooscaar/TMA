@@ -48,4 +48,7 @@ POST /flows/{id}/block
 POST /flows/{id}/unblock
 ```
 
+## Demo
+[![asciicast](https://asciinema.org/a/552125.svg)](https://asciinema.org/a/552125)
+
 
