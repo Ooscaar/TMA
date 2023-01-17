@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/gorilla/mux"
@@ -39,15 +40,14 @@ type Flow struct {
 type FlowInfo struct {
 	Packets uint32
 	Bytes   uint64
+	Speed   uint64 // Bytes per second
 }
 
-// MapRecord:
-// key: flow
+// Memory map for the flows
+// Create a golang map of
+// key: bytes id
 // value: FlowInfo
-type MapRecord struct {
-	key   Flow
-	value FlowInfo
-}
+var flowsDatabase = make(map[string]FlowInfo)
 
 // TEMPORAL: returned as csv string
 func (f Flow) String() string {
@@ -88,41 +88,6 @@ func NewFlowFromBytes(data []byte) (Flow, error) {
 		dport:    binary.BigEndian.Uint16(data[10:12]),
 		protocol: data[12],
 	}, nil
-}
-
-func getFlows() ([]MapRecord, error) {
-	flowMap, err := ebpf.LoadPinnedMap(xdpFlowsPath, nil)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var key [16]byte
-	var value FlowInfo
-
-	// Iterate values
-	flows := []MapRecord{}
-	iterator := flowMap.Iterate()
-
-	log.Println("Iterating flows")
-	for iterator.Next(&key, &value) {
-		flow, _ := NewFlowFromBytes(key[:])
-
-		log.Println("Found flow")
-
-		log.Printf("Packets: %d", value.Packets)
-		log.Printf("Bytes: %d", value.Bytes)
-
-		// Add to string with newline
-		flows = append(flows, MapRecord{
-			key:   flow,
-			value: value,
-		})
-
-	}
-
-	log.Printf("Found %d flows", len(flows))
-	return flows, nil
 }
 
 func isFlowBlocked(key []byte) (int, error) {
@@ -255,29 +220,20 @@ func unblockFlow(key []byte) error {
 }
 
 func flowsGet(w http.ResponseWriter, req *http.Request) {
-	flows, err := getFlows()
-
-	if err != nil {
-		log.Printf("failed read flows: %v", err)
-		http.Error(w, "Failed to read flows", http.StatusInternalServerError)
-		return
-	}
-
-	// Test
 	w.WriteHeader(http.StatusOK)
 
 	// Print all values formatted
 	counter := 0
-	for _, flow := range flows {
+	for key, flow := range flowsDatabase {
 
-		// Use the marshaler of the Flow struct as an id
-		id, err := flow.key.MarshalBinary()
+		// Get if is blocked
+		// Bytes from string to byte[]
+		id, err := hex.DecodeString(key)
 
 		if err != nil {
 			panic(err)
 		}
 
-		// Get if is blocked
 		isBlocked, err := isFlowBlocked(id)
 
 		if err != nil {
@@ -285,7 +241,7 @@ func flowsGet(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// Print key as hex
-		fmt.Fprintf(w, "%x,%s,%d,%d,%d\n", id, flow.key, isBlocked, flow.value.Bytes, flow.value.Packets)
+		fmt.Fprintf(w, "%x,%s,%d,%d,%d\n", id, key, isBlocked, flow.Bytes, flow.Packets)
 		counter++
 	}
 }
@@ -336,7 +292,63 @@ func unblockPost(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func updateFlows() {
+	// Infinite loop
+	log.Printf("Starting update flows routine")
+
+	for {
+		// Wait one second
+		time.Sleep(1 * time.Second)
+
+		// Read map
+		flowMap, err := ebpf.LoadPinnedMap(xdpFlowsPath, nil)
+
+		if err != nil {
+			panic(err)
+		}
+
+		var key [16]byte
+		var value FlowInfo
+
+		// Iterate values
+		newFlowsDatabase := make(map[string]FlowInfo)
+
+		iterator := flowMap.Iterate()
+		log.Println("Iterating flows")
+		for iterator.Next(&key, &value) {
+			// Check if we have the flow in the database
+			// If we do, update the value
+			// If we don't, add it
+			// Convert []byte to string
+			stringKey := string(key[:])
+			elem, found := flowsDatabase[stringKey]
+
+			if found {
+				// Update value and compute speed
+				newFlowsDatabase[stringKey] = FlowInfo{
+					Bytes:   elem.Bytes + value.Bytes,
+					Packets: elem.Packets + value.Packets,
+					Speed:   0,
+				}
+
+				// TOOO: compute speed
+
+			} else {
+				// Add value
+				newFlowsDatabase[stringKey] = FlowInfo{
+					Bytes:   value.Bytes,
+					Packets: value.Packets,
+					Speed:   0,
+				}
+			}
+		}
+	}
+}
+
 func main() {
+
+	// Go routine which updates the flows every second
+	go updateFlows()
 
 	r := mux.NewRouter()
 

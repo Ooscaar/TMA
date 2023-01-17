@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Exit build script on first failure.
+set -e
+
+# Exit on unset variable.
+set -u
+
+# Generate and load the maps
+./xdp_loader --force --dev eth0 --auto-mode
+
+# # # Run the backend
+./backend

@@ -1,0 +1,17 @@
+version: "3"
+services:
+
+  # apt install -y clang llvm libelf-dev libpcap-dev gcc-multilib build-essential tcpdump ethtool socat traceroute iproute2 git iputils-ping
+  tma_nginx:
+    container_name: tma_nginx
+    build: .
+    ports:
+      - 80:80
+      - 8000:8000
+    privileged: true
+    cap_add:
+      - ALL
+    stdin_open: true
+    tty: true
+
+  
