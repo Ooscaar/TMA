@@ -1,6 +1,19 @@
 # TMA
 TMA project
 
+## Docker
+Build:
+
+```
+docker-compose build
+```
+
+Up:
+
+```
+docker-compose up -d
+```
+
 ## Middleware
 
 First, follow instruction from [eBPF_code/README.md](eBPF_code/README.md) to generate the corresponding eBPF code and eBPF maps.
