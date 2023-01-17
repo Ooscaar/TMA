@@ -8,6 +8,7 @@
 #include <regex.h>
 #include <pthread.h>
 #include <signal.h>
+#include <math.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -69,7 +70,10 @@ void readFlows(void) {
     serverAddr.sin_port = htons(BACKEND_PORT);
     inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
 
-    connect(clientSocket, (struct sockaddr*) &serverAddr, sizeof(serverAddr));
+    int err = connect(clientSocket, (struct sockaddr*) &serverAddr, sizeof(serverAddr));
+    if(err == -1) {
+        return;
+    }
 
     // Send the request to the server
     send(clientSocket, message, strlen(message), 0);
@@ -123,10 +127,28 @@ void readFlows(void) {
             else if(atrCounter == 2) strcpy(newFlows[flowsCounter].src_port, atribute);
             else if(atrCounter == 3) strcpy(newFlows[flowsCounter].dst_ip, atribute);
             else if(atrCounter == 4) strcpy(newFlows[flowsCounter].dst_port, atribute);
-            else if(atrCounter == 5) strcpy(newFlows[flowsCounter].protocol, atribute);
+            else if(atrCounter == 5) {
+                if(strcmp(atribute, "6") == 0) sprintf(newFlows[flowsCounter].protocol, "TCP");
+                else if (strcmp(atribute, "17") == 0) sprintf(newFlows[flowsCounter].protocol, "UDP");
+                else sprintf(newFlows[flowsCounter].protocol, "?");
+            }
             else if(atrCounter == 6) newFlows[flowsCounter].blocked = strcmp("0", atribute);
-            else if(atrCounter == 7) strcpy(newFlows[flowsCounter].speed, atribute);
-            else if(atrCounter == 8) strcpy(newFlows[flowsCounter].traff, atribute);
+            else if(atrCounter == 7) {
+                int value = atoi(atribute);
+                if(value < pow(10, 3)) sprintf(newFlows[flowsCounter].speed, "%d Bps", value);
+                else if(value < pow(10, 6)) sprintf(newFlows[flowsCounter].speed, "%.0f KBps", value / pow(10, 3));
+                else if(value < pow(10, 9)) sprintf(newFlows[flowsCounter].speed, "%.0f MBps", value / pow(10, 6));
+                else if(value < pow(10, 12)) sprintf(newFlows[flowsCounter].speed, "%.0f GBps", value / pow(10, 9));
+                else sprintf(newFlows[flowsCounter].speed, "%.0f TBps", value / pow(10, 12));
+            }
+            else if(atrCounter == 8) {
+                int value = atoi(atribute);
+                if(value < pow(10, 3)) sprintf(newFlows[flowsCounter].traff, "%d B", value);
+                else if(value < pow(10, 6)) sprintf(newFlows[flowsCounter].traff, "%.0f KB", value / pow(10, 3));
+                else if(value < pow(10, 9)) sprintf(newFlows[flowsCounter].traff, "%.0f MB", value / pow(10, 6));
+                else if(value < pow(10, 12)) sprintf(newFlows[flowsCounter].traff, "%.0f GB", value / pow(10, 9));
+                else sprintf(newFlows[flowsCounter].speed, "%.0f TBps", value / pow(10, 12));
+            }
 
             memset(atribute, 0, sizeof(atribute)); // Restart the atribute
             atrCounter++;
@@ -303,7 +325,7 @@ void setup_data() {
 }
 
 int write_flows(int diff) {
-    char header[TABLE_COLS][20] = {"?", "Source IP", "Destination IP", "Protocol", "Src Port", "Dst Port", "Speed", "Total data"};
+    char header[TABLE_COLS][20] = {"?", "Source IP", "Destination IP", "Protocol", "Src Port", "Dst Port", "Speed [Bytes/s]", "Total data [Bytes]"};
     int maxFlows = getmaxy(window_flows);
     int tableWidth = getmaxx(window_flows);
     werase(window_flows);
@@ -412,6 +434,8 @@ int main() {
     memset(filterStringTemp, 0, sizeof(filterStringTemp));
     int ch = 0;
     
+    def_prog_mode(); // Store terminal state
+    def_shell_mode(); // Store terminal settings
     initscr(); // initialize Ncurses
 
     setup_bar();
@@ -484,8 +508,18 @@ int main() {
         }
     }
     pthread_kill(threadFlows, SIGKILL);
+
+    // Close all the windows
+    delwin(window_bar);
+    delwin(window_filter);
     delwin(window_data);
-    endwin();
+    delwin(window_flows);
+
+    curs_set(1); // Make cursor visible
+    refresh();
+    endwin(); // End ncurses
+    reset_prog_mode(); // Restore terminal state
+    reset_shell_mode(); // Restore terminal settings
     
     return 0;
 }
