@@ -7,7 +7,11 @@ set -e
 set -u
 
 # Generate and load the maps
-./xdp_loader --force --dev eth0 --auto-mode
+mkdir -p /sys/fs/bpf/eth0
+
+make
+
+./xdp_loader --dev eth0 --force
 
 # # # Run the backend
 ./backend
