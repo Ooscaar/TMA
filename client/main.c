@@ -59,7 +59,8 @@ static int windowPositions[2] = {-1, -1};
 void readFlows(void) {
     /**/
     int clientSocket;
-    int bufferSize = 1024;
+    int chunkSize = 1024;
+    int bufferSize = chunkSize;
     char message[] = "GET /flows HTTP/1.1\r\nHost: 127.0.0.1:8000\r\n\r\n";
     char* response;
     struct sockaddr_in serverAddr;
@@ -88,12 +89,14 @@ void readFlows(void) {
 
     // Check if the response is bigger than the buffer
     while (bytesReceived == bufferSize) {
-        bufferSize += bufferSize;
+        bufferSize += chunkSize;
         response = (char*) realloc(response, bufferSize);
-        bytesReceived += recv(clientSocket, response + bytesReceived, bufferSize, 0);
+        bytesReceived += recv(clientSocket, response + bytesReceived, chunkSize, 0);
     }
     // Add the end of string
+    response = (char*) realloc(response, bufferSize + 1);
     response[bytesReceived] = '\0';
+
     close(clientSocket);
 
     // Parse the HTTP body
@@ -226,7 +229,6 @@ void* updateFlows(void* arg) {
 void blockUnblockFlow() {
     char* flowId = flowsRegex[position].id;
 
-    flowsRegex[position].blocked = !flowsRegex[position].blocked;
     char message[100];
     if(flowsRegex[position].blocked) 
         sprintf(message, "POST /flows/%s/block HTTP/1.1\r\nHost: 127.0.0.1:8000\r\n\r\n", flowId);
@@ -249,6 +251,7 @@ void blockUnblockFlow() {
     send(clientSocket, message, strlen(message), 0);
     close(clientSocket);
 
+    readFlows();
     write_flows(0);
 }
 
@@ -329,7 +332,7 @@ void setup_data() {
 }
 
 int write_flows(int diff) {
-    char header[TABLE_COLS][20] = {"?", "Source IP", "Destination IP", "Protocol", "Src Port", "Dst Port", "Speed [Bytes/s]", "Total data [Bytes]"};
+    char header[TABLE_COLS][20] = {"?", "Source IP", "Destination IP", "Protocol", "Src Port", "Dst Port", "Speed", "Total data"};
     int maxFlows = getmaxy(window_flows);
     int tableWidth = getmaxx(window_flows);
     werase(window_flows);
