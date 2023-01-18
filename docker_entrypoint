@@ -9,6 +9,7 @@ set -u
 # Generate and load the maps
 mount -t bpf bpf /sys/fs/bpf
 
+make
 ./xdp_loader --dev eth0 --force
 
 # Run the backend
