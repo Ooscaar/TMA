@@ -144,7 +144,7 @@ void readFlows(void) {
             atrCounter++;
         }
         // Get flow
-        if(c == '\n') {
+        if(c == '\n' && atrCounter == 9) {
             // If we have a '\n' we will have another flow, so add more memory
             flowsCounter++;
             newFlows = realloc(newFlows, sizeof(Flow) * (flowsCounter + 1));
@@ -154,7 +154,7 @@ void readFlows(void) {
     // Free the HTTP response memory allocation
     free(response);
 
-    flowsNumber = flowsCounter + 1;
+    flowsNumber = flowsCounter;
 
     // Free memory if needed
     while(readingFlows) {}
@@ -444,11 +444,11 @@ int write_flows(int diff) {
         sprintf(item, "%s%-*s", item, columnWidths[6], speedStr);
 
         char traffStr[100];
-        if(flowsRegex[i].traff < pow(10, 3)) sprintf(traffStr, "%lld Bps", flowsRegex[i].traff);
-        else if(flowsRegex[i].traff < pow(10, 6)) sprintf(traffStr, "%.1f KBps", flowsRegex[i].traff / pow(10, 3));
-        else if(flowsRegex[i].traff < pow(10, 9)) sprintf(traffStr, "%.1f MBps", flowsRegex[i].traff / pow(10, 6));
-        else if(flowsRegex[i].traff < pow(10, 12)) sprintf(traffStr, "%.1f GBps", flowsRegex[i].traff / pow(10, 9));
-        else sprintf(traffStr, "%.1f TBps", flowsRegex[i].traff / pow(10, 12));
+        if(flowsRegex[i].traff < pow(10, 3)) sprintf(traffStr, "%lld B", flowsRegex[i].traff);
+        else if(flowsRegex[i].traff < pow(10, 6)) sprintf(traffStr, "%.1f KB", flowsRegex[i].traff / pow(10, 3));
+        else if(flowsRegex[i].traff < pow(10, 9)) sprintf(traffStr, "%.1f MB", flowsRegex[i].traff / pow(10, 6));
+        else if(flowsRegex[i].traff < pow(10, 12)) sprintf(traffStr, "%.1f GB", flowsRegex[i].traff / pow(10, 9));
+        else sprintf(traffStr, "%.1f TB", flowsRegex[i].traff / pow(10, 12));
         sprintf(item, "%s%-*s", item, columnWidths[7], traffStr);
 
         mvwprintw(window_flows, i - windowPositions[0], 0, "%s", item);
