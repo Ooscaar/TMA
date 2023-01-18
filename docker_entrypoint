@@ -13,4 +13,4 @@ make
 ./xdp_loader --dev eth0 --force
 
 # Run the backend
-backend
+backend & nginx -g "daemon off;"

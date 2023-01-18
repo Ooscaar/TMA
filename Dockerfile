@@ -24,8 +24,8 @@ COPY client/main.c ./
 # Run make: lab binary will be created
 RUN gcc -o /lab main.c -lncurses -pthread
 
-## Ubuntu final base image
-FROM ubuntu:latest
+## Nginx final base image
+FROM nginx:latest
 
 WORKDIR /
 

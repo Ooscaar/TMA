@@ -1,17 +1,45 @@
 version: "3"
 services:
-
-  # apt install -y clang llvm libelf-dev libpcap-dev gcc-multilib build-essential tcpdump ethtool socat traceroute iproute2 git iputils-ping
   tma_nginx:
     container_name: tma_nginx
     build: .
     ports:
       - 80:80
       - 8000:8000
+      - 8080:8080
     privileged: true
     cap_add:
       - ALL
-    stdin_open: true
-    tty: true
+    volumes:
+      - ./demo/nginx/conf:/etc/nginx/conf.d:ro
+      - ./demo/nginx/log:/var/log/nginx
+      - ./demo/public:/public
+    depends_on:
+      - tma_server
+    networks:
+      - tma
 
-  
+  tma_server:
+    container_name: tma_server
+    image: node:latest
+    command: bash -c "cd /server && npm ci --no-audit && npm start"
+    volumes:
+      - ./demo/server:/server
+    networks:
+      - tma
+
+  tma_client1:
+    container_name: tma_client1
+    image: node:latest
+    command: bash -c "cd /client && npm ci --no-audit && npm start"
+    volumes:
+      - ./demo/client:/client
+    depends_on:
+      - tma_server
+      - tma_nginx
+    networks:
+      - tma
+    restart: always
+
+networks:
+  tma:
