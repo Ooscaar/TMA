@@ -45,6 +45,7 @@ RUN apt-get update && apt-get install -y \
     traceroute \
     iproute2 \
     git \
+    wget \
     iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
