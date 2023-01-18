@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <unistd.h> // for close()
 #include <fcntl.h> // for open
+#include <stdint.h> // int64_t
 #include <stdlib.h>
 #include <ctype.h>
 #include <regex.h>
@@ -29,11 +30,11 @@ typedef struct Flow {
     bool blocked;
     char src_ip[16];
     char dst_ip[16];
-    char protocol[4]; // TCP or UDP
+    int protocol; // TCP or UDP
     char src_port[6];
     char dst_port[6];
-    char speed[10]; // Bps
-    char traff[10]; // Bits
+    uint64_t speed; // Bps
+    uint64_t traff; // Bytes
 } Flow;
 
 static WINDOW* window_bar;
@@ -127,34 +128,17 @@ void readFlows(void) {
             sprintf(atribute, "%s%c", atribute, c); // Attach the character to the string
         }
         // Get atribute
+        char *endptr;
         if(c == ',' || c == '\n' || c == '\0') {
             if(atrCounter == 0) strcpy(newFlows[flowsCounter].id, atribute);
             else if(atrCounter == 1) strcpy(newFlows[flowsCounter].src_ip, atribute);
             else if(atrCounter == 2) strcpy(newFlows[flowsCounter].src_port, atribute);
             else if(atrCounter == 3) strcpy(newFlows[flowsCounter].dst_ip, atribute);
             else if(atrCounter == 4) strcpy(newFlows[flowsCounter].dst_port, atribute);
-            else if(atrCounter == 5) {
-                if(strcmp(atribute, "6") == 0) sprintf(newFlows[flowsCounter].protocol, "TCP");
-                else if (strcmp(atribute, "17") == 0) sprintf(newFlows[flowsCounter].protocol, "UDP");
-                else sprintf(newFlows[flowsCounter].protocol, "?");
-            }
+            else if(atrCounter == 5) newFlows[flowsCounter].protocol = atoi(atribute);
             else if(atrCounter == 6) newFlows[flowsCounter].blocked = strcmp("0", atribute);
-            else if(atrCounter == 7) {
-                int value = atoi(atribute);
-                if(value < pow(10, 3)) sprintf(newFlows[flowsCounter].speed, "%d Bps", value);
-                else if(value < pow(10, 6)) sprintf(newFlows[flowsCounter].speed, "%.0f KBps", value / pow(10, 3));
-                else if(value < pow(10, 9)) sprintf(newFlows[flowsCounter].speed, "%.0f MBps", value / pow(10, 6));
-                else if(value < pow(10, 12)) sprintf(newFlows[flowsCounter].speed, "%.0f GBps", value / pow(10, 9));
-                else sprintf(newFlows[flowsCounter].speed, "%.0f TBps", value / pow(10, 12));
-            }
-            else if(atrCounter == 8) {
-                int value = atoi(atribute);
-                if(value < pow(10, 3)) sprintf(newFlows[flowsCounter].traff, "%d B", value);
-                else if(value < pow(10, 6)) sprintf(newFlows[flowsCounter].traff, "%.0f KB", value / pow(10, 3));
-                else if(value < pow(10, 9)) sprintf(newFlows[flowsCounter].traff, "%.0f MB", value / pow(10, 6));
-                else if(value < pow(10, 12)) sprintf(newFlows[flowsCounter].traff, "%.0f GB", value / pow(10, 9));
-                else sprintf(newFlows[flowsCounter].speed, "%.0f TBps", value / pow(10, 12));
-            }
+            else if(atrCounter == 7) newFlows[flowsCounter].speed = strtoll(atribute, NULL, 0);
+            else if(atrCounter == 8) newFlows[flowsCounter].traff = strtoll(atribute, NULL, 0);
 
             memset(atribute, 0, sizeof(atribute)); // Restart the atribute
             atrCounter++;
@@ -199,8 +183,14 @@ int filterFlows(void) {
 
         // Get the flows that match the regex
         for(int i = 0; i < flowsNumber; i++) {
+            char protocolStr[100];
+            switch(flows[i].protocol) {
+                case 6: sprintf(protocolStr, "TCP"); break;
+                case 17: sprintf(protocolStr, "UDP"); break;
+                default: sprintf(protocolStr, "?"); break;
+            }
             sprintf(item, "%s %s %s %s %s", flows[i].src_ip, flows[i].dst_ip, 
-                flows[i].protocol, flows[i].src_port, flows[i].dst_port);
+                protocolStr, flows[i].src_port, flows[i].dst_port);
             
             // If there is no regex match ignore the flow
             int result = regexec(&regex, item, 0, NULL, 0);
@@ -210,6 +200,18 @@ int filterFlows(void) {
             flowsRegexNumber++;
             flowsRegex = realloc(flowsRegex, sizeof(Flow) * (flowsRegexNumber));
             flowsRegex[flowsRegexNumber - 1] = flows[i];
+        }
+    }
+
+    // Order the flows (using Bubble sort)
+    Flow temp;
+    for(int i = 0; i < flowsRegexNumber - 1; i++) {
+        for(int j = 0; j < flowsRegexNumber - i - 1; j++) {
+            if (flowsRegex[j].traff < flowsRegex[j+1].traff) {
+                temp = flowsRegex[j];
+                flowsRegex[j] = flowsRegex[j+1];
+                flowsRegex[j+1] = temp;
+            }
         }
     }
 
@@ -228,6 +230,14 @@ void* updateFlows(void* arg) {
 
 void blockUnblockFlow() {
     char* flowId = flowsRegex[position].id;
+
+    // Search in flows the flow with the flowId
+    for(int i = 0; i < flowsNumber; i++) {
+        if(strcmp(flows[i].id, flowId) == 0) {
+            flows[i].blocked = !flows[i].blocked;
+            break;
+        }
+    }
 
     char message[100];
     if(flowsRegex[position].blocked) 
@@ -251,7 +261,6 @@ void blockUnblockFlow() {
     send(clientSocket, message, strlen(message), 0);
     close(clientSocket);
 
-    readFlows();
     write_flows(0);
 }
 
@@ -414,11 +423,33 @@ int write_flows(int diff) {
         }
         sprintf(item, "%s%-*s", item, columnWidths[1], flowsRegex[i].src_ip);
         sprintf(item, "%s%-*s", item, columnWidths[2], flowsRegex[i].dst_ip);
-        sprintf(item, "%s%-*s", item, columnWidths[3], flowsRegex[i].protocol);
+
+        char protocolStr[100];
+        switch(flowsRegex[i].protocol) {
+            case 6: sprintf(protocolStr, "TCP"); break;
+            case 17: sprintf(protocolStr, "UDP"); break;
+            default: sprintf(protocolStr, "?"); break;
+        }
+        sprintf(item, "%s%-*s", item, columnWidths[3], protocolStr);
+
         sprintf(item, "%s%-*s", item, columnWidths[4], flowsRegex[i].src_port);
         sprintf(item, "%s%-*s", item, columnWidths[5], flowsRegex[i].dst_port);
-        sprintf(item, "%s%-*s", item, columnWidths[6], flowsRegex[i].speed);
-        sprintf(item, "%s%-*s", item, columnWidths[7], flowsRegex[i].traff);
+
+        char speedStr[100];
+        if(flowsRegex[i].speed < pow(10, 3)) sprintf(speedStr, "%lld Bps", flowsRegex[i].speed);
+        else if(flowsRegex[i].speed < pow(10, 6)) sprintf(speedStr, "%.1f KBps", flowsRegex[i].speed / pow(10, 3));
+        else if(flowsRegex[i].speed < pow(10, 9)) sprintf(speedStr, "%.1f MBps", flowsRegex[i].speed / pow(10, 6));
+        else if(flowsRegex[i].speed < pow(10, 12)) sprintf(speedStr, "%.1f GBps", flowsRegex[i].speed / pow(10, 9));
+        else sprintf(speedStr, "%.1f TBps", flowsRegex[i].speed / pow(10, 12));
+        sprintf(item, "%s%-*s", item, columnWidths[6], speedStr);
+
+        char traffStr[100];
+        if(flowsRegex[i].traff < pow(10, 3)) sprintf(traffStr, "%lld Bps", flowsRegex[i].traff);
+        else if(flowsRegex[i].traff < pow(10, 6)) sprintf(traffStr, "%.1f KBps", flowsRegex[i].traff / pow(10, 3));
+        else if(flowsRegex[i].traff < pow(10, 9)) sprintf(traffStr, "%.1f MBps", flowsRegex[i].traff / pow(10, 6));
+        else if(flowsRegex[i].traff < pow(10, 12)) sprintf(traffStr, "%.1f GBps", flowsRegex[i].traff / pow(10, 9));
+        else sprintf(traffStr, "%.1f TBps", flowsRegex[i].traff / pow(10, 12));
+        sprintf(item, "%s%-*s", item, columnWidths[7], traffStr);
 
         mvwprintw(window_flows, i - windowPositions[0], 0, "%s", item);
         wattroff(window_flows, A_STANDOUT);
