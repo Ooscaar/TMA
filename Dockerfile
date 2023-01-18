@@ -48,8 +48,8 @@ RUN apt-get update && apt-get install -y \
     iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build-backend /backend /backend
-COPY --from=build-client /lab /lab
+COPY --from=build-backend /backend /usr/local/bin/backend
+COPY --from=build-client /lab /usr/local/bin/lab
 
 # Copy ebpf folder
 COPY eBPF_code .

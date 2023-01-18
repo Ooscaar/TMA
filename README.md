@@ -5,7 +5,7 @@ TMA project
 Build:
 
 ```
-docker-compose build
+DOCKER_BUILDKIT=1 docker-compose build
 ```
 
 Up:
@@ -13,6 +13,8 @@ Up:
 ```
 docker-compose up -d
 ```
+
+Server available on http://localhost:8000
 
 ## Middleware
 
@@ -45,8 +47,8 @@ GET /flows
 Response: 
 
 ```csv
-# id,src_ip,src_port,dst_ip,dst_port,protocol,blocked,speed,bytes
-0a0b01020a0b01011b391b9e06000000,10.11.1.2,6969,10.11.1.1,7070,6,0,13473856056937,7
+# id,src_ip,src_port,dst_ip,dst_port,protocol,blocked,speed(Bps),bytes
+ac120001ac120002d0001f4006000000,172.18.0.1,53248,172.18.0.2,8000,6,0,0.000000,2328415923817
 ```
 
 ### Block flow

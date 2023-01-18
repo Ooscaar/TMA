@@ -12,4 +12,4 @@ mount -t bpf bpf /sys/fs/bpf
 ./xdp_loader --dev eth0 --force
 
 # Run the backend
-./backend
+backend

@@ -18,9 +18,12 @@ const (
 	xdpFlowsPath = "/sys/fs/bpf/eth0/xdp_flow_map"
 
 	xdpBlockedFlowsPath = "/sys/fs/bpf/eth0/xdp_blocked_flows"
+
+	monitoringTime = 1 * time.Second
 )
 
 // from eBPF_code/common_kern_user_datastructure.h
+//
 // struct flow { // Stored in BIG ENDIAN!
 //
 //	        __be32  saddr;
@@ -37,6 +40,12 @@ type Flow struct {
 	protocol uint8
 }
 
+// from eBPF_code/common_kern_user_datastructure.h
+//
+//	struct info_map {
+//		__u32 packets;
+//		__u64 bytes;
+//	};
 type FlowInfo struct {
 	Packets uint32
 	Bytes   uint64
@@ -50,14 +59,6 @@ type FlowDatabaseValue struct {
 
 	// Timestamps
 	Timestamp time.Time
-}
-
-// MapRecord:
-// key: flow
-// value: FlowInfo
-type MapRecord struct {
-	key   Flow
-	value FlowInfo
 }
 
 // Map keys as bytes arrays
@@ -257,6 +258,8 @@ func flowsGet(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// Print key as hex
+		// Return as CSV
+		// id,src_ip,src_port,dst_ip,dst_port,protocol,blocked,speed(Bps),bytes
 		fmt.Fprintf(w, "%x,%s,%d,%f,%d\n", key, flow, value.Blocked, value.Speed, value.Bytes)
 	}
 }
@@ -311,7 +314,7 @@ func updateFlows() {
 	// Loop forever
 	for {
 		// Every 2 seconds
-		time.Sleep(2 * time.Second)
+		time.Sleep(monitoringTime)
 
 		flowMap, err := ebpf.LoadPinnedMap(xdpFlowsPath, nil)
 
@@ -325,35 +328,13 @@ func updateFlows() {
 		// Iterate values
 		iterator := flowMap.Iterate()
 
-		// Create a new map
+		// Create a new "database"
 		var newFlowsDatabase = make(map[[16]byte]FlowDatabaseValue)
 
 		for iterator.Next(&key, &value) {
 
-			// Add to string with newline
-			flow := MapRecord{
-				key: Flow{
-					saddr:    net.IP(key[:4]),
-					daddr:    net.IP(key[4:8]),
-					sport:    binary.BigEndian.Uint16(key[8:10]),
-					dport:    binary.BigEndian.Uint16(key[10:12]),
-					protocol: key[12],
-				},
-				value: value,
-			}
-
-			// Debug flow
-			// log.Printf("-> Flow %s", flow.key)
-
-			// Use the marshaler of the Flow struct as an id
-			id, err := flow.key.MarshalBinary()
-
-			if err != nil {
-				panic(err)
-			}
-
 			// Get if is blocked
-			isBlocked, err := isFlowBlocked(id)
+			isBlocked, err := isFlowBlocked(key[:])
 
 			if err != nil {
 				panic(err)
@@ -361,8 +342,8 @@ func updateFlows() {
 
 			// Save to "database"
 			// Take 16 bytes of the id and use it as a key
-			var key [16]byte
-			copy(key[:], id[:16])
+			var keyMap [16]byte
+			copy(keyMap[:], key[:16])
 
 			// Load previous value
 			previousValue, ok := FlowsDatabase[key]
@@ -380,10 +361,8 @@ func updateFlows() {
 				// Compute speed
 				now := time.Now()
 				elapsedTime := now.Sub(previousValue.Timestamp).Seconds()
-				log.Printf("Elapsed time: %f\n", elapsedTime)
 
 				// Compute speed
-				log.Printf("Computed bytes: %d\n", value.Bytes-previousValue.Bytes)
 				speed := float64(value.Bytes-previousValue.Bytes) / elapsedTime
 
 				// Save to database
@@ -405,7 +384,7 @@ func updateFlows() {
 
 func main() {
 
-	// Start monitoring flows
+	// Start monitoring flows in background
 	go updateFlows()
 
 	r := mux.NewRouter()
