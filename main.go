@@ -47,15 +47,15 @@ type Flow struct {
 //		__u64 bytes;
 //	};
 type FlowInfo struct {
-	Packets uint32
+	Packets uint64
 	Bytes   uint64
 }
 
 type FlowDatabaseValue struct {
-	Packets uint32
+	Packets uint64
 	Bytes   uint64
 	Blocked int
-	Speed   float64
+	Speed   uint64
 
 	// Timestamps
 	Timestamp time.Time
@@ -260,7 +260,7 @@ func flowsGet(w http.ResponseWriter, req *http.Request) {
 		// Print key as hex
 		// Return as CSV
 		// id,src_ip,src_port,dst_ip,dst_port,protocol,blocked,speed(Bps),bytes
-		fmt.Fprintf(w, "%x,%s,%d,%f,%d\n", key, flow, value.Blocked, value.Speed, value.Bytes)
+		fmt.Fprintf(w, "%x,%s,%d,%d,%d\n", key, flow, value.Blocked, value.Speed, value.Bytes)
 	}
 }
 
@@ -332,7 +332,6 @@ func updateFlows() {
 		var newFlowsDatabase = make(map[[16]byte]FlowDatabaseValue)
 
 		for iterator.Next(&key, &value) {
-
 			// Get if is blocked
 			isBlocked, err := isFlowBlocked(key[:])
 
@@ -363,7 +362,7 @@ func updateFlows() {
 				elapsedTime := now.Sub(previousValue.Timestamp).Seconds()
 
 				// Compute speed
-				speed := float64(value.Bytes-previousValue.Bytes) / elapsedTime
+				speed := value.Bytes - previousValue.Bytes/uint64(elapsedTime)
 
 				// Save to database
 				newFlowsDatabase[key] = FlowDatabaseValue{
