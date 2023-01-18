@@ -47,6 +47,7 @@ static char filterStringTemp[100];
 
 static Flow* flows = NULL;
 static int flowsNumber;
+static bool readingFlows = false;
 static Flow* flowsRegex;
 static int flowsRegexNumber;
 
@@ -87,10 +88,12 @@ void readFlows(void) {
 
     // Check if the response is bigger than the buffer
     while (bytesReceived == bufferSize) {
-        bufferSize *= 2;
+        bufferSize += bufferSize;
         response = (char*) realloc(response, bufferSize);
-        bytesReceived += recv(clientSocket, response + bytesReceived, bufferSize - bytesReceived, 0);
+        bytesReceived += recv(clientSocket, response + bytesReceived, bufferSize, 0);
     }
+    // Add the end of string
+    response[bytesReceived] = '\0';
     close(clientSocket);
 
     // Parse the HTTP body
@@ -167,6 +170,7 @@ void readFlows(void) {
     flowsNumber = flowsCounter + 1;
 
     // Free memory if needed
+    while(readingFlows) {}
     if(flows == NULL) {
         flows = newFlows;
     } else {
@@ -348,6 +352,7 @@ int write_flows(int diff) {
     wrefresh(window_data);
     memset(item, 0, sizeof(item));
 
+    readingFlows = true;
     int filterResult = filterFlows(); // Filter the flows
     if(filterResult) {
         // Error filtering
@@ -424,6 +429,7 @@ int write_flows(int diff) {
     if(writeMode) {
         write_filter('\0');
     }
+    readingFlows = false;
 
     return position;
 }
