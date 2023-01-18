@@ -1,7 +1,7 @@
 const WebSocket = require('ws');
 
 setTimeout(() => {
-    let socket = new WebSocket('ws://tma_server:8080');
+    let socket = new WebSocket('ws://tma_nginx:8080');
 
     // Connection opened
     socket.addEventListener('open', (event) => {
