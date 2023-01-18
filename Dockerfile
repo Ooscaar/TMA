@@ -29,8 +29,6 @@ FROM ubuntu:latest
 
 WORKDIR /
 
-COPY --from=build-backend /backend /backend
-COPY --from=build-client /lab /lab
 
 # Install packages
 # clang llvm libelf-dev libpcap-dev gcc-multilib build-essential tcpdump ethtool socat traceroute iproute2 git iputils-ping
@@ -49,6 +47,9 @@ RUN apt-get update && apt-get install -y \
     git \
     iputils-ping \
     && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build-backend /backend /backend
+COPY --from=build-client /lab /lab
 
 # Copy ebpf folder
 COPY eBPF_code .
