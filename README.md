@@ -45,7 +45,7 @@ GET /flows
 Response: 
 
 ```csv
-# id,src_ip,src_port,dst_ip,dst_port,protocol,blocked,bytes,packets
+# id,src_ip,src_port,dst_ip,dst_port,protocol,blocked,speed,bytes
 0a0b01020a0b01011b391b9e06000000,10.11.1.2,6969,10.11.1.1,7070,6,0,13473856056937,7
 ```
 
